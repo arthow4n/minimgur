@@ -1,28 +1,69 @@
 import React, {
     AppRegistry,
+    AsyncStorage,
+    BackAndroid,
     Clipboard,
     Component,
     Navigator,
     ProgressBarAndroid as ProgressBar,
     StyleSheet,
     Text,
+    TextInput,
+    ToastAndroid as Toast,
     TouchableHighlight,
     View
 } from 'react-native';
+
+import {
+    MKButton,
+    MKColor
+} from 'react-native-material-kit';
 
 import { CLIENT_ID } from './imgur.config.js';
 
 import { ImagePickerManager } from 'NativeModules';
 
+const mkButtonCommonProps = {
+    backgroundColor: MKColor.Teal,
+    flex: 1,
+    borderColor: 'white',
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'stretch',
+    shadowRadius: 2,
+    shadowOffset: {width:0, height:2},
+    shadowOpacity: 0.7,
+    shadowColor: 'black',
+};
 class minimgur extends Component {
+
     constructor(props) {
         super(props);
         this.renderScene = this.renderScene.bind(this);
-        this._setClipboardContent = this._setClipboardContent.bind(this);
         this.uploadToImgur = this.uploadToImgur.bind(this);
+        this.copyResultsToClipboard = this.copyResultsToClipboard.bind(this);
         this.state = {
-            result: ''
+            results: ''
         };
+    }
+
+    componentDidMount() {
+        BackAndroid.addEventListener('hardwareBackPress', function() {
+            const currentRouteName = this.refs.navigator.getCurrentRoutes().slice(-1)[0].name;
+            switch (currentRouteName) {
+                case 'home':
+                    BackAndroid.exitApp();
+                    break;
+                case 'results':
+                    this.refs.navigator.resetTo({name: 'home'});
+                    break;
+                case 'uploading':
+                    break;
+                default:
+                    this.refs.navigator.pop();
+            }
+            return true;
+        }.bind(this));
     }
 
     render() {
@@ -39,14 +80,76 @@ class minimgur extends Component {
         switch (route.name) {
             case 'home':
                 return (
-                    <TouchableHighlight style={styles.container} onPress={() => this.showUploader()}>
-                        <View style={styles.container}>
-                            <Text style={styles.callToAction}>
-                                Upload to Imgur!
-                            </Text>
+                    <View style={styles.container}>
+
+                        <View style={[styles.row, styles.rowFirst]}>
+                            <View style={styles.rowFirst} onPress={() => navigator.resetTo({name: 'home'})}>
+                                <Text style={[styles.callToAction]}>
+                                    Minimgur
+                                </Text>
+                            </View>
+                            <MKButton {...mkButtonCommonProps} onPress={() => navigator.push({name: 'settings'})}>
+                                <Text pointerEvents="none"
+                                    style={[{color: 'white', fontWeight: 'bold', textAlign: 'center'}]}>
+                                    Settings
+                                </Text>
+                            </MKButton>
                         </View>
-                    </TouchableHighlight>
+
+                        <View style={[styles.row, styles.rowSub]}>
+                            <MKButton {...mkButtonCommonProps}>
+                                <Text pointerEvents="none"
+                                    style={[{color: 'white', fontWeight: 'bold', textAlign: 'center'}]}>
+                                    CameraRoll
+                                </Text>
+                            </MKButton>
+                        </View>
+
+                        <View style={[styles.row]}>
+                            <MKButton {...mkButtonCommonProps} onPress={() => this.showUploader('library')}>
+                                <Text pointerEvents="none"
+                                    style={[{color: 'white', fontWeight: 'bold', textAlign: 'center'}]}>
+                                    Instant Upload from Library
+                                </Text>
+                            </MKButton>
+                            <MKButton {...mkButtonCommonProps} onPress={() => this.showUploader('camera')}>
+                                <Text pointerEvents="none"
+                                    style={[{color: 'white', fontWeight: 'bold', textAlign: 'center'}]}>
+                                    Instant Upload from Camera
+                                </Text>
+                            </MKButton>
+                            {/* <TouchableHighlight style={styles.container} onPress={() => true}>
+                                <Text style={styles.callToAction}>
+                                    Camera
+                                </Text>
+                            </TouchableHighlight> */}
+                        </View>
+
+                        <View style={[styles.row, styles.rowSub]}>
+                            <MKButton {...mkButtonCommonProps} onPress={() => navigator.push('history')}>
+                                <Text pointerEvents="none"
+                                    style={[{color: 'white', fontWeight: 'bold', textAlign: 'center'}]}>
+                                    ShowHistory
+                                </Text>
+                            </MKButton>
+                        </View>
+                    </View>
                 );
+            case 'settings':
+                return (
+                    <View style={[styles.container]}>
+                        <View style={[styles.row]}>
+                        </View>
+                        <View style={[styles.row]}>
+                        </View>
+                        <View style={[styles.row]}>
+                        </View>
+                        <View style={[styles.row]}>
+                        </View>
+                        <View style={[styles.row]}>
+                        </View>
+                    </View>
+                )
             case 'uploading':
                 return (
                     <View style={styles.container}>
@@ -56,17 +159,66 @@ class minimgur extends Component {
             case 'results':
                 return (
                     <View style={styles.container}>
-                        <Text>Result URL have been copied to the clipboard.</Text>
-                        <Text>{this.state.result}</Text>
+                        <View style={[styles.row, styles.rowFirst]}>
+                            <TouchableHighlight style={styles.rowFirst} onPress={() => navigator.resetTo({name: 'home'})}>
+                                <Text style={[styles.callToAction]}>
+                                    Minimgur
+                                </Text>
+                            </TouchableHighlight>
+                            <MKButton {...mkButtonCommonProps}>
+                                <Text pointerEvents="none"
+                                    style={[{color: 'white', fontWeight: 'bold', textAlign: 'center'}]}>
+                                    History
+                                </Text>
+                            </MKButton>
+                        </View>
+
+                        <View style={[styles.row]}>
+                            <TextInput
+                                style={[styles.container, { fontSize: 16}]}
+                                onChangeText={(text) => this.setState({text})}
+                                multiline={true}
+                                editable={true}
+                                value={this.state.results}
+                            />
+                        </View>
+                        <View style={[styles.row, styles.rowSub]}>
+                            <MKButton {...mkButtonCommonProps} onPress={() => this.copyResultsToClipboard()}>
+                                <Text pointerEvents="none"
+                                    style={[{color: 'white', fontWeight: 'bold', textAlign: 'center'}]}>
+                                    Copy to Clipboard
+                                </Text>
+                            </MKButton>
+                        </View>
                     </View>
                 );
+            case 'history':
+                return (
+                    <View></View>
+                )
         }
     }
 
-    showUploader() {
-        ImagePickerManager.launchImageLibrary({}, (response)  => {
-            this.uploadToImgur(response);
-        });
+    showUploader(source) {
+        const uploadToImgur = this.uploadToImgur;
+
+        switch (source) {
+            case 'library':
+                ImagePickerManager.launchImageLibrary({}, (response) => onImagePicked(response));
+                break;
+            case 'camera':
+                ImagePickerManager.launchCamera({mediaType: 'photo'}, (response) => onImagePicked(response));
+                break;
+        }
+
+        function onImagePicked(response) {
+            if (response.error) {
+                console.log('ImagePickerManager Error: ', response.error);
+            }
+            else if (!response.didCancel) {
+                uploadToImgur(response);
+            }
+        }
     }
 
     uploadToImgur(imageObject) {
@@ -86,24 +238,47 @@ class minimgur extends Component {
         .then((response) => {
             console.log(response);
             this.setState({
-                result: response.data.link
+                results: response.data.link
             });
-            Clipboard.setString(response.data.link);
+            this.copyResultsToClipboard();
             this.refs.navigator.push({name: 'results'});
         })
         .catch((ex) => console.log(ex));
+    }
+
+    copyResultsToClipboard() {
+        Clipboard.setString(this.state.results);
+        Toast.show('Result URLs have been copied to the clipboard.', Toast.SHORT);
     }
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        // flexDirection: 'row',
+        // flexWrap: 'wrap',
         justifyContent: 'center',
-        alignItems: 'center',
+        alignItems: 'stretch',
+        borderColor: 'black',
+        borderWidth: 3,
         backgroundColor: '#F5FCFF'
     },
+    row: {
+        flex: 1,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'stretch',
+    },
+    rowFirst: {
+        flex: 0,
+        height: 54,
+    },
+    rowSub: {
+        flex: 0,
+        height: 128,
+    },
     callToAction: {
-        fontSize: 48,
+        fontSize: 32,
         textAlign: 'center',
         margin: 10
     },
