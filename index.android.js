@@ -19,9 +19,11 @@ import {
     MKColor
 } from 'react-native-material-kit';
 
+import { ImagePickerManager } from 'NativeModules';
+
 import { CLIENT_ID } from './imgur.config.js';
 
-import { ImagePickerManager } from 'NativeModules';
+const STORAGE_KEY = '@Minimgur:state';
 
 const mkButtonCommonProps = {
     backgroundColor: MKColor.Teal,
@@ -42,9 +44,34 @@ class minimgur extends Component {
         this.renderScene = this.renderScene.bind(this);
         this.uploadToImgur = this.uploadToImgur.bind(this);
         this.copyResultsToClipboard = this.copyResultsToClipboard.bind(this);
-        this.state = {
-            results: ''
-        };
+        this.saveState = this.saveState.bind(this);
+        this.state = {};
+    }
+
+    async loadInitialState() {
+        try {
+            const state = await AsyncStorage.getItem(STORAGE_KEY);
+            if (state !== null) {
+                this.setState(JSON.parse(state));
+            } else {
+                // the state on clean start
+                this.setState({
+                    settings: {
+                        autoCopyOnUploadSuccess: true,
+                        precompressBeforeUpload: false,
+                    },
+                    results: '',
+                    history: [],
+                });
+            }
+        } catch (error) {
+            console.error(error);
+        }
+        this.refs.navigator.resetTo({name: 'home'});
+    }
+
+    saveState() {
+
     }
 
     componentDidMount() {
@@ -64,20 +91,28 @@ class minimgur extends Component {
             }
             return true;
         }.bind(this));
+
+        this.loadInitialState().done();
     }
 
     render() {
         return (
             <Navigator
                 ref="navigator"
-                initialRoute={{name: 'home'}}
+                initialRoute={{name: 'initializing'}}
                 renderScene={this.renderScene}
-            />
+                />
         );
     }
 
     renderScene(route, navigator) {
         switch (route.name) {
+            case 'initializing':
+                return (
+                    <View style={styles.container}>
+                        <ProgressBar styleAttr="Large" />
+                    </View>
+                )
             case 'home':
                 return (
                     <View style={styles.container}>
@@ -214,8 +249,7 @@ class minimgur extends Component {
         function onImagePicked(response) {
             if (response.error) {
                 console.log('ImagePickerManager Error: ', response.error);
-            }
-            else if (!response.didCancel) {
+            } else if (!response.didCancel) {
                 uploadToImgur(response);
             }
         }
@@ -237,13 +271,35 @@ class minimgur extends Component {
         .then((response) => response.json())
         .then((response) => {
             console.log(response);
-            this.setState({
-                results: response.data.link
-            });
-            this.copyResultsToClipboard();
-            this.refs.navigator.push({name: 'results'});
+            if (response.success) {
+                this.setState({
+                    results: response.data.link
+                }, () => {
+                    if (this.state.settings.autoCopyOnUploadSuccess) {
+                        this.copyResultsToClipboard();
+                    }
+                    this.setState(Object.assign({}, this.state, {
+                        history: [...this.state.history, {
+                            deleteHash: response.data.deletehash,
+                            thumbnail: response.data.link.replace(response.data.id, response.data.id + 's'),
+                            link: response.data.link,
+                        }],
+                    }), () => {
+                        console.log(this.state.history);
+                        try {
+                            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), () => {
+                                this.refs.navigator.push({name: 'results'});
+                            });
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    });                    
+                });
+            } else {
+                console.error(JSON.stringify(response));
+            }
         })
-        .catch((ex) => console.log(ex));
+        .catch((ex) => console.error(ex));
     }
 
     copyResultsToClipboard() {
