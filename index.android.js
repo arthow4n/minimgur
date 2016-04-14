@@ -19,17 +19,24 @@ import {
     MKColor
 } from 'react-native-material-kit';
 
+import {
+    Card,
+    Toolbar,
+} from 'react-native-material-design';
+
 import { ImagePickerManager } from 'NativeModules';
 
 import { CLIENT_ID } from './imgur.config.js';
 
+import IconEI from 'react-native-vector-icons/EvilIcons';
+
 const STORAGE_KEY = '@Minimgur:state';
 
 const mkButtonCommonProps = {
-    backgroundColor: MKColor.Teal,
+    backgroundColor: MKColor.Silver,
     flex: 1,
-    borderColor: 'white',
-    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,.1)',
+    borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'stretch',
     shadowRadius: 2,
@@ -37,6 +44,7 @@ const mkButtonCommonProps = {
     shadowOpacity: 0.7,
     shadowColor: 'black',
 };
+
 class minimgur extends Component {
 
     constructor(props) {
@@ -101,7 +109,20 @@ class minimgur extends Component {
                 ref="navigator"
                 initialRoute={{name: 'initializing'}}
                 renderScene={this.renderScene}
-                />
+                navigationBar={
+                    <Toolbar
+                        title="Minimgur"
+                        primary="paperTeal"
+                        icon="home"
+                        actions={[{
+                            icon: 'settings',
+                        }]}
+                        rightIconStyle={{
+                            margin: 10
+                        }}
+                    />
+                }
+            />
         );
     }
 
@@ -114,57 +135,51 @@ class minimgur extends Component {
                     </View>
                 )
             case 'home':
+            // onIconPress={() => navigator && navigator.isChild ? navigator.back() : onIconPress()}
                 return (
-                    <View style={styles.container}>
-
-                        <View style={[styles.row, styles.rowFirst]}>
-                            <View style={styles.rowFirst} onPress={() => navigator.resetTo({name: 'home'})}>
-                                <Text style={[styles.callToAction]}>
-                                    Minimgur
+                    <View style={styles.scene}>
+                        <View style={styles.homeButtonContainer}>
+                            <MKButton {...mkButtonCommonProps}  onPress={() => this.showUploader('camera')}>
+                                <Text style={styles.mkButtonText}>
+                                    <IconEI name="camera" size={64} />
                                 </Text>
-                            </View>
-                            <MKButton {...mkButtonCommonProps} onPress={() => navigator.push({name: 'settings'})}>
                                 <Text pointerEvents="none"
-                                    style={[{color: 'white', fontWeight: 'bold', textAlign: 'center'}]}>
-                                    Settings
+                                    style={styles.mkButtonText}>
+                                    Upload from Camera Shot
                                 </Text>
                             </MKButton>
                         </View>
-
-                        <View style={[styles.row, styles.rowSub]}>
-                            <MKButton {...mkButtonCommonProps}>
-                                <Text pointerEvents="none"
-                                    style={[{color: 'white', fontWeight: 'bold', textAlign: 'center'}]}>
-                                    CameraRoll
-                                </Text>
-                            </MKButton>
-                        </View>
-
-                        <View style={[styles.row]}>
+                        <View style={styles.homeButtonContainer}>
                             <MKButton {...mkButtonCommonProps} onPress={() => this.showUploader('library')}>
+                                <Text style={styles.mkButtonText}>
+                                    <IconEI name="image" size={64} />
+                                </Text>
                                 <Text pointerEvents="none"
-                                    style={[{color: 'white', fontWeight: 'bold', textAlign: 'center'}]}>
-                                    Instant Upload from Library
+                                    style={styles.mkButtonText}>
+                                    Upload from Native Selector
                                 </Text>
                             </MKButton>
-                            <MKButton {...mkButtonCommonProps} onPress={() => this.showUploader('camera')}>
-                                <Text pointerEvents="none"
-                                    style={[{color: 'white', fontWeight: 'bold', textAlign: 'center'}]}>
-                                    Instant Upload from Camera
-                                </Text>
-                            </MKButton>
-                            {/* <TouchableHighlight style={styles.container} onPress={() => true}>
-                                <Text style={styles.callToAction}>
-                                    Camera
-                                </Text>
-                            </TouchableHighlight> */}
                         </View>
-
-                        <View style={[styles.row, styles.rowSub]}>
-                            <MKButton {...mkButtonCommonProps} onPress={() => navigator.push('history')}>
+                        <View style={styles.homeButtonContainer}>
+                            <MKButton {...mkButtonCommonProps} backgroundColor={MKColor.Indigo}>
+                                <Text style={styles.mkButtonTextPrimary} >
+                                    <IconEI name="image" size={64} />
+                                    <IconEI name="plus" size={64} />
+                                </Text>
                                 <Text pointerEvents="none"
-                                    style={[{color: 'white', fontWeight: 'bold', textAlign: 'center'}]}>
-                                    ShowHistory
+                                    style={styles.mkButtonTextPrimary}>
+                                    Select from Recent Images
+                                </Text>
+                            </MKButton>
+                        </View>
+                        <View style={styles.homeButtonContainer}>
+                            <MKButton {...mkButtonCommonProps}>
+                                <Text style={styles.mkButtonText}>
+                                    <IconEI name="clock" size={64} />
+                                </Text>
+                                <Text pointerEvents="none"
+                                    style={styles.mkButtonText}>
+                                    Show History
                                 </Text>
                             </MKButton>
                         </View>
@@ -293,7 +308,7 @@ class minimgur extends Component {
                         } catch (err) {
                             console.error(err);
                         }
-                    });                    
+                    });
                 });
             } else {
                 console.error(JSON.stringify(response));
@@ -309,6 +324,16 @@ class minimgur extends Component {
 }
 
 const styles = StyleSheet.create({
+    scene: {
+        flex: 1,
+        marginTop: 56,
+    },
+    homeButtonContainer: {
+        backgroundColor: '#ffffff',
+        borderRadius: 2,
+        margin: 8,
+        flex: 1,
+    },
     container: {
         flex: 1,
         // flexDirection: 'row',
@@ -333,11 +358,18 @@ const styles = StyleSheet.create({
         flex: 0,
         height: 128,
     },
-    callToAction: {
-        fontSize: 32,
-        textAlign: 'center',
-        margin: 10
+    mkButtonText: {
+        color: MKColor.Teal,
+        fontSize: 24,
+        fontWeight: 'bold',
+        textAlign: 'center'
     },
+    mkButtonTextPrimary: {
+        color: 'white',
+        fontSize: 24,
+        fontWeight: 'bold',
+        textAlign: 'center'
+    }
 });
 
 AppRegistry.registerComponent('minimgur', () => minimgur);
