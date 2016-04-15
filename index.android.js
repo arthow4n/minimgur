@@ -58,7 +58,6 @@ class minimgur extends Component {
         this.renderScene = this.renderScene.bind(this);
         this.uploadToImgur = this.uploadToImgur.bind(this);
         this.copyResultsToClipboard = this.copyResultsToClipboard.bind(this);
-        this.validateCustomClientId = this.validateCustomClientId.bind(this);
         this.state = {};
     }
 
@@ -73,8 +72,6 @@ class minimgur extends Component {
                     options: {
                         autoCopyOnUploadSuccess: true,
                     },
-                    customClientId: '',
-                    customClientIdIsValid: false,
                     results: '',
                     history: [],
                 });
@@ -196,7 +193,6 @@ class minimgur extends Component {
                     </View>
                 );
             case 'settings':
-                let newClientId = '';
                 return (
                     <View style={[styles.scene]}>
                         <View>
@@ -223,45 +219,6 @@ class minimgur extends Component {
                                     value: 'autoCopyOnUploadSuccess', label: 'Automatically copy the result URLs'
                                 }]}
                             />
-                        </View>
-                        <View>
-                            <Subheader text="Custom Client Key" />
-                            <View style={[ styles.row, { marginLeft: 16, marginRight: 16}]}>
-                                <View style={{ flex: 4}}>
-                                        <MKTextField
-                                            tintColor={MKColor.Teal}
-                                            textInputStyle={{ color: MKColor.Black }}
-                                            value={(() => {
-                                                if (this.state.customClientIdIsValid) return this.state.customClientId;
-                                            })()}
-                                            password={true}
-                                            placeholder="Imgur CLIENT_ID"
-                                            style={[styles.textfield]}
-                                            onTextChange={(e) => {
-                                                newClientId = e;
-                                            }}
-                                            onSubmitEditing={(e) => this.validateCustomClientId(newClientId)}
-                                        />
-                                </View>
-                                <View style={styles.homeButtonContainer}>
-                                    <MKButton
-                                        {...mkButtonCommonProps}
-                                        backgroundColor={MKColor.Teal}
-                                        borderWidth={0}
-                                        height={32}
-                                        onPress={() => this.validateCustomClientId(newClientId)}
-                                    >
-                                        <Text style={[styles.mkButtonTextPrimary, {fontSize: 16}]} >
-                                            {(() => {
-                                                if (this.state.customClientIdIsValid) {
-                                                    return 'Unset';
-                                                }
-                                                return 'Set';
-                                            })()}
-                                        </Text>
-                                    </MKButton>
-                                </View>
-                            </View>
                         </View>
                         <View>
                             <Subheader text="About" />
@@ -376,10 +333,6 @@ class minimgur extends Component {
     copyResultsToClipboard() {
         Clipboard.setString(this.state.results);
         Toast.show('Result URLs have been copied to the clipboard.', Toast.SHORT);
-    }
-
-    validateCustomClientId(clientId) {
-        console.log(clientId);
     }
 }
 
