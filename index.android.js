@@ -4,6 +4,7 @@ import React, {
     BackAndroid,
     Clipboard,
     Component,
+    Linking,
     Navigator,
     ProgressBarAndroid as ProgressBar,
     StyleSheet,
@@ -16,13 +17,18 @@ import React, {
 
 import {
     MKButton,
-    MKColor
+    MKColor,
+    MKTextField,
 } from 'react-native-material-kit';
 
 import {
     Card,
+    CheckboxGroup,
+    Subheader,
     Toolbar,
 } from 'react-native-material-design';
+
+import Label from './Label.js';
 
 import { ImagePickerManager } from 'NativeModules';
 
@@ -52,7 +58,7 @@ class minimgur extends Component {
         this.renderScene = this.renderScene.bind(this);
         this.uploadToImgur = this.uploadToImgur.bind(this);
         this.copyResultsToClipboard = this.copyResultsToClipboard.bind(this);
-        this.saveState = this.saveState.bind(this);
+        this.validateCustomClientId = this.validateCustomClientId.bind(this);
         this.state = {};
     }
 
@@ -64,10 +70,11 @@ class minimgur extends Component {
             } else {
                 // the state on clean start
                 this.setState({
-                    settings: {
+                    options: {
                         autoCopyOnUploadSuccess: true,
-                        precompressBeforeUpload: false,
                     },
+                    customClientId: '',
+                    customClientIdIsValid: false,
                     results: '',
                     history: [],
                 });
@@ -76,10 +83,6 @@ class minimgur extends Component {
             console.error(error);
         }
         this.refs.navigator.resetTo({name: 'home'});
-    }
-
-    saveState() {
-
     }
 
     componentDidMount() {
@@ -116,6 +119,14 @@ class minimgur extends Component {
                         icon="home"
                         actions={[{
                             icon: 'settings',
+                            onPress: () => {
+                                const currentRouteName = this.refs.navigator.getCurrentRoutes().slice(-1)[0].name;
+                                console.log(this.refs.navigator.getCurrentRoutes().slice(-1)[0].name);
+                                if ( currentRouteName !== 'uploading' &&
+                                    currentRouteName !== 'settings' ) {
+                                    this.refs.navigator.push({ name: 'settings' });
+                                }
+                            }
                         }]}
                         rightIconStyle={{
                             margin: 10
@@ -135,10 +146,9 @@ class minimgur extends Component {
                     </View>
                 )
             case 'home':
-            // onIconPress={() => navigator && navigator.isChild ? navigator.back() : onIconPress()}
                 return (
                     <View style={styles.scene}>
-                        <View style={styles.homeButtonContainer}>
+                        <View style={[styles.homeButtonContainer, { marginTop: 8 }]}>
                             <MKButton {...mkButtonCommonProps}  onPress={() => this.showUploader('camera')}>
                                 <Text style={styles.mkButtonText}>
                                     <IconEI name="camera" size={64} />
@@ -186,17 +196,78 @@ class minimgur extends Component {
                     </View>
                 );
             case 'settings':
+                let newClientId = '';
                 return (
-                    <View style={[styles.container]}>
-                        <View style={[styles.row]}>
+                    <View style={[styles.scene]}>
+                        <View>
+                            <Subheader text="Options" />
+                            <CheckboxGroup
+                                primary="paperTeal"
+                                checked={Object.keys(this.state.options).filter((k) => this.state.options[k])}
+                                onSelect={(selected) => {
+                                    const newOptions = {};
+                                    for (var key in this.state.options) {
+                                        newOptions[key] = selected.indexOf(key) !== -1;
+                                    }
+                                    this.setState(Object.assign({}, this.state, {
+                                        options: newOptions,
+                                    }), () => {
+                                        try {
+                                            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+                                        } catch (err) {
+                                            console.error(err);
+                                        }
+                                    });
+                                }}
+                                items={[{
+                                    value: 'autoCopyOnUploadSuccess', label: 'Automatically copy the result URLs'
+                                }]}
+                            />
                         </View>
-                        <View style={[styles.row]}>
+                        <View>
+                            <Subheader text="Custom Client Key" />
+                            <View style={[ styles.row, { marginLeft: 16, marginRight: 16}]}>
+                                <View style={{ flex: 4}}>
+                                        <MKTextField
+                                            tintColor={MKColor.Teal}
+                                            textInputStyle={{ color: MKColor.Black }}
+                                            value={(() => {
+                                                if (this.state.customClientIdIsValid) return this.state.customClientId;
+                                            })()}
+                                            password={true}
+                                            placeholder="Imgur CLIENT_ID"
+                                            style={[styles.textfield]}
+                                            onTextChange={(e) => {
+                                                newClientId = e;
+                                            }}
+                                            onSubmitEditing={(e) => this.validateCustomClientId(newClientId)}
+                                        />
+                                </View>
+                                <View style={styles.homeButtonContainer}>
+                                    <MKButton
+                                        {...mkButtonCommonProps}
+                                        backgroundColor={MKColor.Teal}
+                                        borderWidth={0}
+                                        height={32}
+                                        onPress={() => this.validateCustomClientId(newClientId)}
+                                    >
+                                        <Text style={[styles.mkButtonTextPrimary, {fontSize: 16}]} >
+                                            {(() => {
+                                                if (this.state.customClientIdIsValid) {
+                                                    return 'Unset';
+                                                }
+                                                return 'Set';
+                                            })()}
+                                        </Text>
+                                    </MKButton>
+                                </View>
+                            </View>
                         </View>
-                        <View style={[styles.row]}>
-                        </View>
-                        <View style={[styles.row]}>
-                        </View>
-                        <View style={[styles.row]}>
+                        <View>
+                            <Subheader text="About" />
+                            <Label label="Github repository: arthow4n/minimgur" onPress={() => {
+                                Linking.openURL('https://github.com/arthow4n/minimgur').done();
+                            }} eiIcon="sc-github"/>
                         </View>
                     </View>
                 )
@@ -209,20 +280,6 @@ class minimgur extends Component {
             case 'results':
                 return (
                     <View style={styles.container}>
-                        <View style={[styles.row, styles.rowFirst]}>
-                            <TouchableHighlight style={styles.rowFirst} onPress={() => navigator.resetTo({name: 'home'})}>
-                                <Text style={[styles.callToAction]}>
-                                    Minimgur
-                                </Text>
-                            </TouchableHighlight>
-                            <MKButton {...mkButtonCommonProps}>
-                                <Text pointerEvents="none"
-                                    style={[{color: 'white', fontWeight: 'bold', textAlign: 'center'}]}>
-                                    History
-                                </Text>
-                            </MKButton>
-                        </View>
-
                         <View style={[styles.row]}>
                             <TextInput
                                 style={[styles.container, { fontSize: 16}]}
@@ -235,7 +292,7 @@ class minimgur extends Component {
                         <View style={[styles.row, styles.rowSub]}>
                             <MKButton {...mkButtonCommonProps} onPress={() => this.copyResultsToClipboard()}>
                                 <Text pointerEvents="none"
-                                    style={[{color: 'white', fontWeight: 'bold', textAlign: 'center'}]}>
+                                    style={styles.mkButtonTextPrimary}>
                                     Copy to Clipboard
                                 </Text>
                             </MKButton>
@@ -300,7 +357,6 @@ class minimgur extends Component {
                             link: response.data.link,
                         }],
                     }), () => {
-                        console.log(this.state.history);
                         try {
                             AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), () => {
                                 this.refs.navigator.push({name: 'results'});
@@ -321,6 +377,10 @@ class minimgur extends Component {
         Clipboard.setString(this.state.results);
         Toast.show('Result URLs have been copied to the clipboard.', Toast.SHORT);
     }
+
+    validateCustomClientId(clientId) {
+        console.log(clientId);
+    }
 }
 
 const styles = StyleSheet.create({
@@ -331,17 +391,15 @@ const styles = StyleSheet.create({
     homeButtonContainer: {
         backgroundColor: '#ffffff',
         borderRadius: 2,
-        margin: 8,
+        marginLeft: 8,
+        marginRight: 8,
+        marginBottom: 8,
         flex: 1,
     },
     container: {
         flex: 1,
-        // flexDirection: 'row',
-        // flexWrap: 'wrap',
         justifyContent: 'center',
         alignItems: 'stretch',
-        borderColor: 'black',
-        borderWidth: 3,
         backgroundColor: '#F5FCFF'
     },
     row: {
