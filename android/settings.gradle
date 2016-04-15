@@ -7,3 +7,6 @@ project(':react-native-image-picker').projectDir = new File(settingsDir, '../nod
 
 include ':RNMaterialKit'
 project(':RNMaterialKit').projectDir = file('../node_modules/react-native-material-kit/android')
+
+include ':react-native-fs'
+project(':react-native-fs').projectDir = new File(settingsDir, '../node_modules/react-native-fs/android')

@@ -4,7 +4,9 @@ import React, {
     BackAndroid,
     Clipboard,
     Component,
+    Dimensions,
     Linking,
+    ListView,
     Navigator,
     ProgressBarAndroid as ProgressBar,
     StyleSheet,
@@ -12,11 +14,15 @@ import React, {
     TextInput,
     ToastAndroid as Toast,
     TouchableHighlight,
+    TouchableOpacity,
     View
 } from 'react-native';
 
+import XImage from 'react-native-ximage';
+
 import {
     MKButton,
+    MKCheckbox,
     MKColor,
     MKTextField,
 } from 'react-native-material-kit';
@@ -35,11 +41,14 @@ import { ImagePickerManager } from 'NativeModules';
 import { CLIENT_ID } from './imgur.config.js';
 
 import IconEI from 'react-native-vector-icons/EvilIcons';
+import IconFA from 'react-native-vector-icons/FontAwesome';
 
 const STORAGE_KEY = '@Minimgur:state';
 
 const mkButtonCommonProps = {
     backgroundColor: MKColor.Silver,
+    rippleColor: 'rgba(128,128,128,0.2)',
+    maskColor: 'rgba(128,128,128,0.15)',
     flex: 1,
     borderColor: 'rgba(0,0,0,.1)',
     borderWidth: 2,
@@ -50,6 +59,11 @@ const mkButtonCommonProps = {
     shadowOpacity: 0.7,
     shadowColor: 'black',
 };
+
+const mkButtonCommonPropsPrimary = Object.assign({}, mkButtonCommonProps, {
+    rippleColor: 'rgba(0,0,0,0.2)',
+    maskColor: 'rgba(0,0,0,0.15)',
+})
 
 class minimgur extends Component {
 
@@ -114,6 +128,9 @@ class minimgur extends Component {
                         title="Minimgur"
                         primary="paperTeal"
                         icon="home"
+                        onIconPress={() => {
+                            this.refs.navigator.resetTo({name: 'home'});
+                        }}
                         actions={[{
                             icon: 'settings',
                             onPress: () => {
@@ -168,7 +185,7 @@ class minimgur extends Component {
                             </MKButton>
                         </View>
                         <View style={styles.homeButtonContainer}>
-                            <MKButton {...mkButtonCommonProps} backgroundColor={MKColor.Indigo}>
+                            <MKButton {...mkButtonCommonPropsPrimary} backgroundColor={MKColor.Indigo}>
                                 <Text style={styles.mkButtonTextPrimary} >
                                     <IconEI name="image" size={64} />
                                     <IconEI name="plus" size={64} />
@@ -180,7 +197,7 @@ class minimgur extends Component {
                             </MKButton>
                         </View>
                         <View style={styles.homeButtonContainer}>
-                            <MKButton {...mkButtonCommonProps}>
+                            <MKButton {...mkButtonCommonProps} onPress={() => navigator.push({ name: 'history' })}>
                                 <Text style={styles.mkButtonText}>
                                     <IconEI name="clock" size={64} />
                                 </Text>
@@ -221,6 +238,12 @@ class minimgur extends Component {
                             />
                         </View>
                         <View>
+                            <Subheader text="Operations" />
+                            <Label label="Clear local upload history" onPress={() => {
+                                return true;
+                            }} eiIcon="trash"/>
+                        </View>
+                        <View>
                             <Subheader text="About" />
                             <Label label="Github repository: arthow4n/minimgur" onPress={() => {
                                 Linking.openURL('https://github.com/arthow4n/minimgur').done();
@@ -257,8 +280,72 @@ class minimgur extends Component {
                     </View>
                 );
             case 'history':
+                let ds = new ListView.DataSource({rowHasChanged: (r1, r2) => r1 !== r2 });
+                ds = ds.cloneWithRows(this.state.history)
+                console.log(ds);
                 return (
-                    <View></View>
+                    <View style={styles.scene}>
+                        <View style={styles.row}>
+                            <ListView dataSource={ds}
+                                renderSeparator={() => <View style={{ height: 1, backgroundColor: '#EAEAEA' }} ></View>}
+                                renderRow={(image) => {
+                                    return (
+                                        <View style={styles.rowHistory}>
+                                            <View style={styles.row}>
+                                                <TouchableOpacity onPress={() => true}>
+                                                    <View>
+                                                        <XImage url={image.thumbnail} style={{ height: 96, width: 96 }}/>
+                                                    </View>
+                                                </TouchableOpacity>
+                                                <View style={styles.col}>
+                                                    <View style={styles.col}>
+                                                        <Text style={{ textAlign: 'center' }}>{image.link}</Text>
+                                                    </View>
+                                                    <View style={styles.row}>
+                                                        <MKButton {...mkButtonCommonProps}
+                                                            onPress={() => {
+                                                                console.log(this.state.history);
+                                                            }}>
+                                                            <Text pointerEvents="none"
+                                                                style={[styles.mkButtonText]}>
+                                                                <IconFA name="clipboard" size={24} />
+                                                            </Text>
+                                                        </MKButton>
+                                                        <MKButton {...mkButtonCommonProps} onPress={() => {
+                                                                console.log(this.state.history);
+                                                            }}>
+                                                            <Text pointerEvents="none"
+                                                                style={[styles.mkButtonText]}>
+                                                                <IconFA name="share-alt" size={24} />
+                                                            </Text>
+                                                        </MKButton>
+                                                        <MKButton {...mkButtonCommonProps} onPress={() => {
+                                                                console.log(this.state.history);
+                                                            }}>
+                                                            <Text pointerEvents="none"
+                                                                style={[styles.mkButtonText, { color: MKColor.Red }]}>
+                                                                <IconFA name="trash-o" size={24} />
+                                                            </Text>
+                                                        </MKButton>
+                                                        <MKCheckbox width={56} checked={false}/>
+                                                    </View>
+                                                </View>
+                                            </View>
+                                        </View>
+                                    )
+                            }} />
+                        </View>
+                        <View style={[styles.row, styles.rowButton]}>
+                            <MKButton {...mkButtonCommonPropsPrimary} backgroundColor={MKColor.Indigo} onPress={() => {
+                                    console.log(this.state.history);
+                                }}>
+                                <Text pointerEvents="none"
+                                    style={[styles.mkButtonTextPrimary, { fontSize: 16 }]}>
+                                    Copy Selected URLs to Clipboard
+                                </Text>
+                            </MKButton>
+                        </View>
+                    </View>
                 )
         }
     }
@@ -285,6 +372,7 @@ class minimgur extends Component {
     }
 
     uploadToImgur(imageObject) {
+        console.log(imageObject);
         this.refs.navigator.push({name: 'uploading'});
         const formData = new FormData();
         formData.append('image', imageObject.data);
@@ -304,14 +392,14 @@ class minimgur extends Component {
                 this.setState({
                     results: response.data.link
                 }, () => {
-                    if (this.state.settings.autoCopyOnUploadSuccess) {
+                    if (this.state.options.autoCopyOnUploadSuccess) {
                         this.copyResultsToClipboard();
                     }
                     this.setState(Object.assign({}, this.state, {
                         history: [...this.state.history, {
-                            deleteHash: response.data.deletehash,
-                            thumbnail: response.data.link.replace(response.data.id, response.data.id + 's'),
-                            link: response.data.link,
+                            deletehash: response.data.deletehash,
+                            thumbnail: response.data.link.replace(response.data.id, response.data.id + 's').replace('http://', 'https://'),
+                            link: response.data.link.replace('http://', 'https://'),
                         }],
                     }), () => {
                         try {
@@ -361,13 +449,19 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'stretch',
     },
-    rowFirst: {
-        flex: 0,
-        height: 54,
+    col: {
+        flex: 1,
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'stretch',
     },
-    rowSub: {
+    rowButton: {
         flex: 0,
-        height: 128,
+        height: 56,
+    },
+    rowHistory: {
+        flex: 0,
+        height: 90,
     },
     mkButtonText: {
         color: MKColor.Teal,
@@ -380,7 +474,7 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: 'bold',
         textAlign: 'center'
-    }
+    },
 });
 
 AppRegistry.registerComponent('minimgur', () => minimgur);
