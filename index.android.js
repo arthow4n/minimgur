@@ -19,7 +19,6 @@ import React, {
     View
 } from 'react-native';
 
-import XImage from 'react-native-ximage';
 
 import {
     MKButton,
@@ -35,11 +34,12 @@ import {
     Toolbar,
 } from 'react-native-material-design';
 
-import Label from './Label.js';
-
 import { ImagePickerManager } from 'NativeModules';
-
 import Share from 'react-native-share';
+import XImage from 'react-native-ximage';
+import RNFS from 'react-native-fs';
+
+import Label from './Label.js';
 
 import { CLIENT_ID } from './imgur.config.js';
 
@@ -89,6 +89,11 @@ class minimgur extends Component {
                     fullScreen: false,
                     options: {
                         autoCopyOnUploadSuccess: true,
+                    },
+                    uploading: '',
+                    uploadProgress: {
+                        index: 1,
+                        length: 1,
                     },
                     results: [],
                     history: [],
@@ -270,7 +275,9 @@ class minimgur extends Component {
             case 'uploading':
                 return (
                     <View style={styles.container}>
+                        <Text style={{textAlign: 'center', margin: 16, fontSize: 18}}>{this.state.uploading}</Text>
                         <ProgressBar styleAttr="Large" />
+                        <Text style={{textAlign: 'center', margin: 16}}>{(`Uploading image [${this.state.uploadProgress.index}/${this.state.uploadProgress.index}]`)}</Text>
                     </View>
                 );
             case 'results':
@@ -302,43 +309,53 @@ class minimgur extends Component {
         if (response.error) {
             console.log('ImagePickerManager Error: ', response.error);
         } else if (!response.didCancel) {
-            this.uploadToImgur(response)
-            .then((response) => {
-                if (response.success) {
-                    const result = {
-                        deletehash: response.data.deletehash,
-                        id: response.data.id,
-                        link: response.data.link.replace('http://', 'https://'),
-                    };
-                    this.setState(Object.assign({}, this.state, {
-                        results: [result, ...this.state.results]
-                    }), () => {
-                        if (this.state.options.autoCopyOnUploadSuccess) {
-                            this.copyResultsToClipboard(this.state.results.map((image) => image.link));
-                        }
-                        this.setState(Object.assign({}, this.state, {
-                            history: [result, ...this.state.history],
-                        }), () => {
-                            try {
-                                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), () => {
-                                    this.refs.navigator.push({name: 'results'});
-                                });
-                            } catch (err) {
-                                console.error(err);
-                            }
-                        });
-                    });
-                } else {
-                    console.error(JSON.stringify(response));
+            this.setState(Object.assign({}, this.state, {
+                uploading: response.fileName,
+                uploadProgress: {
+                    index: 1,
+                    length: 1,
+                },
+            }), () => {
+                if (this.refs.navigator.getCurrentRoutes().slice(-1)[0].name !== 'uploading') {
+                    this.refs.navigator.push({name: 'uploading'});
                 }
-            })
-            .catch((ex) => console.log(ex));
+                this.uploadToImgur(response)
+                .then((response) => {
+                    if (response.success) {
+                        const result = {
+                            deletehash: response.data.deletehash,
+                            id: response.data.id,
+                            link: response.data.link.replace('http://', 'https://'),
+                        };
+                        this.setState(Object.assign({}, this.state, {
+                            results: [result, ...this.state.results]
+                        }), () => {
+                            if (this.state.options.autoCopyOnUploadSuccess) {
+                                this.copyResultsToClipboard(this.state.results.map((image) => image.link));
+                            }
+                            this.setState(Object.assign({}, this.state, {
+                                history: [result, ...this.state.history],
+                            }), () => {
+                                try {
+                                    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), () => {
+                                        this.refs.navigator.push({name: 'results'});
+                                    });
+                                } catch (err) {
+                                    console.error(err);
+                                }
+                            });
+                        });
+                    } else {
+                        console.error(JSON.stringify(response));
+                    }
+                })
+                .catch((ex) => console.log(ex));
+            });
         }
     }
 
     uploadToImgur(imageObject) {
         return new Promise((resolve, reject) => {
-            this.refs.navigator.push({name: 'uploading'});
             const formData = new FormData();
             formData.append('image', imageObject.data);
             fetch('https://api.imgur.com/3/image',
