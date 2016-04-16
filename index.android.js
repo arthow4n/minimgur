@@ -1,4 +1,5 @@
 import React, {
+    Alert,
     AppRegistry,
     AsyncStorage,
     BackAndroid,
@@ -38,6 +39,8 @@ import Label from './Label.js';
 
 import { ImagePickerManager } from 'NativeModules';
 
+import Share from 'react-native-share';
+
 import { CLIENT_ID } from './imgur.config.js';
 
 import IconEI from 'react-native-vector-icons/EvilIcons';
@@ -61,8 +64,8 @@ const mkButtonCommonProps = {
 };
 
 const mkButtonCommonPropsPrimary = Object.assign({}, mkButtonCommonProps, {
-    rippleColor: 'rgba(0,0,0,0.2)',
-    maskColor: 'rgba(0,0,0,0.15)',
+    rippleColor: 'rgba(255,255,255,0.2)',
+    maskColor: 'rgba(255,255,255,0.15)',
 })
 
 class minimgur extends Component {
@@ -83,10 +86,11 @@ class minimgur extends Component {
             } else {
                 // the state on clean start
                 this.setState({
+                    fullScreen: false,
                     options: {
                         autoCopyOnUploadSuccess: true,
                     },
-                    results: '',
+                    results: [],
                     history: [],
                 });
             }
@@ -99,11 +103,19 @@ class minimgur extends Component {
     componentDidMount() {
         BackAndroid.addEventListener('hardwareBackPress', function() {
             const currentRouteName = this.refs.navigator.getCurrentRoutes().slice(-1)[0].name;
+            if (this.state.fullScreen) {
+                this.setState(Object.assign({}, this.state, {
+                    fullScreen: false,
+                }));
+            };
             switch (currentRouteName) {
                 case 'home':
                     BackAndroid.exitApp();
                     break;
                 case 'results':
+                    this.setState(Object.assign({}, this.state, {
+                        results: [],
+                    }));
                     this.refs.navigator.resetTo({name: 'home'});
                     break;
                 case 'uploading':
@@ -123,30 +135,34 @@ class minimgur extends Component {
                 ref="navigator"
                 initialRoute={{name: 'initializing'}}
                 renderScene={this.renderScene}
-                navigationBar={
-                    <Toolbar
-                        title="Minimgur"
-                        primary="paperTeal"
-                        icon="home"
-                        onIconPress={() => {
-                            this.refs.navigator.resetTo({name: 'home'});
-                        }}
-                        actions={[{
-                            icon: 'settings',
-                            onPress: () => {
-                                const currentRouteName = this.refs.navigator.getCurrentRoutes().slice(-1)[0].name;
-                                console.log(this.refs.navigator.getCurrentRoutes().slice(-1)[0].name);
-                                if ( currentRouteName !== 'uploading' &&
-                                    currentRouteName !== 'settings' ) {
-                                    this.refs.navigator.push({ name: 'settings' });
-                                }
-                            }
-                        }]}
-                        rightIconStyle={{
-                            margin: 10
-                        }}
-                    />
-                }
+                navigationBar={(() => {
+                    if (!this.state.fullScreen) {
+                        return (
+                            <Toolbar
+                                title="Minimgur"
+                                primary="paperTeal"
+                                icon="home"
+                                onIconPress={() => {
+                                    this.refs.navigator.resetTo({name: 'home'});
+                                }}
+                                actions={[{
+                                    icon: 'settings',
+                                    onPress: () => {
+                                        const currentRouteName = this.refs.navigator.getCurrentRoutes().slice(-1)[0].name;
+                                        console.log(this.refs.navigator.getCurrentRoutes().slice(-1)[0].name);
+                                        if ( currentRouteName !== 'uploading' &&
+                                            currentRouteName !== 'settings' ) {
+                                            this.refs.navigator.push({ name: 'settings' });
+                                        }
+                                    }
+                                }]}
+                                rightIconStyle={{
+                                    margin: 10
+                                }}
+                            />
+                        )
+                    }
+                })()}
             />
         );
     }
@@ -258,169 +274,231 @@ class minimgur extends Component {
                     </View>
                 );
             case 'results':
+                return this.renderHistory(this.state.results, true);
+            case 'history':
+                return this.renderHistory(this.state.history);
+            case 'showImage':
+                const { width, height } = Dimensions.get('window');
                 return (
-                    <View style={styles.container}>
-                        <View style={[styles.row]}>
-                            <TextInput
-                                style={[styles.container, { fontSize: 16}]}
-                                onChangeText={(text) => this.setState({text})}
-                                multiline={true}
-                                editable={true}
-                                value={this.state.results}
-                            />
-                        </View>
-                        <View style={[styles.row, styles.rowSub]}>
-                            <MKButton {...mkButtonCommonProps} onPress={() => this.copyResultsToClipboard()}>
-                                <Text pointerEvents="none"
-                                    style={styles.mkButtonTextPrimary}>
-                                    Copy to Clipboard
-                                </Text>
-                            </MKButton>
-                        </View>
+                    <View>
+                        <XImage url={route.url} style={{ height, width }} />
                     </View>
                 );
-            case 'history':
-                let ds = new ListView.DataSource({rowHasChanged: (r1, r2) => r1 !== r2 });
-                ds = ds.cloneWithRows(this.state.history)
-                console.log(ds);
-                return (
-                    <View style={styles.scene}>
-                        <View style={styles.row}>
-                            <ListView dataSource={ds}
-                                renderSeparator={() => <View style={{ height: 1, backgroundColor: '#EAEAEA' }} ></View>}
-                                renderRow={(image) => {
-                                    return (
-                                        <View style={styles.rowHistory}>
-                                            <View style={styles.row}>
-                                                <TouchableOpacity onPress={() => true}>
-                                                    <View>
-                                                        <XImage url={image.thumbnail} style={{ height: 96, width: 96 }}/>
-                                                    </View>
-                                                </TouchableOpacity>
-                                                <View style={styles.col}>
-                                                    <View style={styles.col}>
-                                                        <Text style={{ textAlign: 'center' }}>{image.link}</Text>
-                                                    </View>
-                                                    <View style={styles.row}>
-                                                        <MKButton {...mkButtonCommonProps}
-                                                            onPress={() => {
-                                                                console.log(this.state.history);
-                                                            }}>
-                                                            <Text pointerEvents="none"
-                                                                style={[styles.mkButtonText]}>
-                                                                <IconFA name="clipboard" size={24} />
-                                                            </Text>
-                                                        </MKButton>
-                                                        <MKButton {...mkButtonCommonProps} onPress={() => {
-                                                                console.log(this.state.history);
-                                                            }}>
-                                                            <Text pointerEvents="none"
-                                                                style={[styles.mkButtonText]}>
-                                                                <IconFA name="share-alt" size={24} />
-                                                            </Text>
-                                                        </MKButton>
-                                                        <MKButton {...mkButtonCommonProps} onPress={() => {
-                                                                console.log(this.state.history);
-                                                            }}>
-                                                            <Text pointerEvents="none"
-                                                                style={[styles.mkButtonText, { color: MKColor.Red }]}>
-                                                                <IconFA name="trash-o" size={24} />
-                                                            </Text>
-                                                        </MKButton>
-                                                        <MKCheckbox width={56} checked={false}/>
-                                                    </View>
-                                                </View>
-                                            </View>
-                                        </View>
-                                    )
-                            }} />
-                        </View>
-                        <View style={[styles.row, styles.rowButton]}>
-                            <MKButton {...mkButtonCommonPropsPrimary} backgroundColor={MKColor.Indigo} onPress={() => {
-                                    console.log(this.state.history);
-                                }}>
-                                <Text pointerEvents="none"
-                                    style={[styles.mkButtonTextPrimary, { fontSize: 16 }]}>
-                                    Copy Selected URLs to Clipboard
-                                </Text>
-                            </MKButton>
-                        </View>
-                    </View>
-                )
         }
     }
 
     showUploader(source) {
-        const uploadToImgur = this.uploadToImgur;
-
         switch (source) {
             case 'library':
-                ImagePickerManager.launchImageLibrary({}, (response) => onImagePicked(response));
+                ImagePickerManager.launchImageLibrary({}, (response) => this.onUploaderImagePicked(response));
                 break;
             case 'camera':
-                ImagePickerManager.launchCamera({mediaType: 'photo'}, (response) => onImagePicked(response));
+                ImagePickerManager.launchCamera({mediaType: 'photo'}, (response) => this.onUploaderImagePicked(response));
                 break;
         }
+    }
 
-        function onImagePicked(response) {
-            if (response.error) {
-                console.log('ImagePickerManager Error: ', response.error);
-            } else if (!response.didCancel) {
-                uploadToImgur(response);
-            }
+    onUploaderImagePicked(response) {
+        if (response.error) {
+            console.log('ImagePickerManager Error: ', response.error);
+        } else if (!response.didCancel) {
+            this.uploadToImgur(response)
+            .then((response) => {
+                if (response.success) {
+                    const result = {
+                        deletehash: response.data.deletehash,
+                        id: response.data.id,
+                        link: response.data.link.replace('http://', 'https://'),
+                    };
+                    this.setState(Object.assign({}, this.state, {
+                        results: [result, ...this.state.results]
+                    }), () => {
+                        if (this.state.options.autoCopyOnUploadSuccess) {
+                            this.copyResultsToClipboard(this.state.results.map((image) => image.link));
+                        }
+                        this.setState(Object.assign({}, this.state, {
+                            history: [result, ...this.state.history],
+                        }), () => {
+                            try {
+                                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), () => {
+                                    this.refs.navigator.push({name: 'results'});
+                                });
+                            } catch (err) {
+                                console.error(err);
+                            }
+                        });
+                    });
+                } else {
+                    console.error(JSON.stringify(response));
+                }
+            })
+            .catch((ex) => console.log(ex));
         }
     }
 
     uploadToImgur(imageObject) {
-        console.log(imageObject);
-        this.refs.navigator.push({name: 'uploading'});
-        const formData = new FormData();
-        formData.append('image', imageObject.data);
-        fetch('https://api.imgur.com/3/image',
-            {
-                method: 'POST',
-                headers: {
-                    Authorization: 'Client-ID ' + CLIENT_ID
-                },
-                body: formData
-            }
-        )
-        .then((response) => response.json())
-        .then((response) => {
-            console.log(response);
-            if (response.success) {
-                this.setState({
-                    results: response.data.link
-                }, () => {
-                    if (this.state.options.autoCopyOnUploadSuccess) {
-                        this.copyResultsToClipboard();
-                    }
-                    this.setState(Object.assign({}, this.state, {
-                        history: [...this.state.history, {
-                            deletehash: response.data.deletehash,
-                            thumbnail: response.data.link.replace(response.data.id, response.data.id + 's').replace('http://', 'https://'),
-                            link: response.data.link.replace('http://', 'https://'),
-                        }],
-                    }), () => {
-                        try {
-                            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), () => {
-                                this.refs.navigator.push({name: 'results'});
-                            });
-                        } catch (err) {
-                            console.error(err);
-                        }
-                    });
-                });
-            } else {
-                console.error(JSON.stringify(response));
-            }
+        return new Promise((resolve, reject) => {
+            this.refs.navigator.push({name: 'uploading'});
+            const formData = new FormData();
+            formData.append('image', imageObject.data);
+            fetch('https://api.imgur.com/3/image',
+                {
+                    method: 'POST',
+                    headers: {
+                        Authorization: 'Client-ID ' + CLIENT_ID
+                    },
+                    body: formData
+                }
+            )
+            .then((response) => response.json())
+            .then((response) => {
+                console.log(response);
+                resolve(response);
+            })
+            .catch((ex) => reject(ex));
         })
-        .catch((ex) => console.error(ex));
     }
 
-    copyResultsToClipboard() {
-        Clipboard.setString(this.state.results);
-        Toast.show('Result URLs have been copied to the clipboard.', Toast.SHORT);
+    renderHistory(history, isResults) {
+        let ds = new ListView.DataSource({rowHasChanged: (r1, r2) => r1 !== r2 });
+        ds = ds.cloneWithRows(history);
+        let selectedURLs = [];
+        if (isResults) {
+            history.forEach((image) => {
+                selectedURLs.push(image.link)
+            });
+        }
+        return (
+            <View style={styles.scene}>
+                <View style={styles.row}>
+                    <ListView dataSource={ds}
+                        initialListSize={15}
+                        renderSeparator={(sectionId, rowId) => {
+                            return (
+                                <View style={{ height: 1, backgroundColor: '#EAEAEA' }} key={`${sectionId}-${rowId}`}></View>
+                            )
+                        }}
+                        renderRow={(image) => {
+                            return (
+                                <View style={styles.rowHistory} key={image.deletehash}>
+                                    <View style={styles.row}>
+                                        <TouchableOpacity onPress={() => {
+                                            this.setState(Object.assign({}, this.state, {
+                                                fullScreen: true,
+                                            }));
+                                            this.refs.navigator.push({
+                                                name: 'showImage',
+                                                url: image.link,
+                                            });
+                                        }}>
+                                            <View>
+                                                <XImage url={image.link.replace(image.id, `${image.id}s`)} style={{ height: 96, width: 96 }} />
+                                            </View>
+                                        </TouchableOpacity>
+                                        <View style={styles.col}>
+                                            <View style={styles.col}>
+                                                <Text style={{ textAlign: 'center' }}>{image.link}</Text>
+                                            </View>
+                                            <View style={styles.row}>
+                                                <MKButton {...mkButtonCommonProps}
+                                                    onPress={() => {
+                                                        this.copyResultsToClipboard([image.link]);
+                                                    }}>
+                                                    <Text pointerEvents="none"
+                                                        style={[styles.mkButtonText]}>
+                                                        <IconFA name="clipboard" size={24} />
+                                                    </Text>
+                                                </MKButton>
+                                                <MKButton {...mkButtonCommonProps} onPress={() => {
+                                                        Share.open({
+                                                            share_URL: image.link,
+                                                        }, (e) => console.log(e));
+                                                    }}>
+                                                    <Text pointerEvents="none"
+                                                        style={[styles.mkButtonText]}>
+                                                        <IconFA name="share-alt" size={24} />
+                                                    </Text>
+                                                </MKButton>
+                                                {(() => {
+                                                    if (isResults) {
+                                                        return (
+                                                            <View style={{flex: 1}} />
+                                                        )
+                                                    } else {
+                                                        return (
+                                                            <MKButton {...mkButtonCommonProps} onPress={() => {
+                                                                    Alert.alert(
+                                                                        'Delete Remote Image',
+                                                                        `Are you sure to delete image: \n${image.link}?`,
+                                                                        [
+                                                                            {text: 'Cancel', onPress: () => true, style: 'cancel'},
+                                                                            {text: 'OK', onPress: () => {
+                                                                                Toast.show(`Deleting ${image.link}`, Toast.SHORT);
+                                                                                fetch('https://api.imgur.com/3/image/' + image.deletehash, {
+                                                                                    method: 'POST',
+                                                                                    headers: {
+                                                                                        Authorization: 'Client-ID ' + CLIENT_ID
+                                                                                    },
+                                                                                })
+                                                                                .then((response) => response.json())
+                                                                                .then((response) => {
+                                                                                    if (response.success) {
+                                                                                        this.setState(Object.assign({}, this.state, {
+                                                                                            history: this.state.history.filter((historyImage) => {
+                                                                                                return historyImage.deletehash !== image.deletehash;
+                                                                                            })
+                                                                                        }), () => {
+                                                                                            try {
+                                                                                                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+                                                                                            } catch (err) {
+                                                                                                console.error(err);
+                                                                                            }
+                                                                                        });
+                                                                                    }
+                                                                                })
+                                                                                .catch((ex) => console.error(ex));
+                                                                            }},
+                                                                        ]
+                                                                    )}}>
+                                                                    <Text pointerEvents="none"
+                                                                        style={[styles.mkButtonText, { color: MKColor.Red }]}>
+                                                                        <IconFA name="trash-o" size={24} />
+                                                                    </Text>
+                                                                </MKButton>
+                                                        )
+                                                    }
+                                                })()}
+                                                <MKCheckbox width={56} checked={isResults} onCheckedChange={(v) => {
+                                                        if (v.checked) {
+                                                            selectedURLs.push(image.link);
+                                                        } else {
+                                                            selectedURLs = selectedURLs.filter((url) => url !== image.link);
+                                                        }
+                                                }}/>
+                                            </View>
+                                        </View>
+                                    </View>
+                                </View>
+                            )
+                    }} />
+                </View>
+                <View style={[styles.row, styles.rowButton]}>
+                    <MKButton {...mkButtonCommonPropsPrimary} backgroundColor={MKColor.Indigo} onPress={() => {
+                            this.copyResultsToClipboard(selectedURLs);
+                        }}>
+                        <Text pointerEvents="none"
+                            style={[styles.mkButtonTextPrimary, { fontSize: 16 }]}>
+                            Copy Selected URLs to Clipboard
+                        </Text>
+                    </MKButton>
+                </View>
+            </View>
+        )
+    }
+
+    copyResultsToClipboard(arrayOfURLs) {
+        Clipboard.setString(arrayOfURLs.join('\n'));
+        Toast.show('Selected URL(s) have been copied to the clipboard.', Toast.SHORT);
     }
 }
 

@@ -1,6 +1,7 @@
 package com.minimgur;
 
 import com.facebook.react.ReactActivity;
+import cl.json.RNSharePackage;
 import com.facebook.react.ReactPackage;
 import com.facebook.react.shell.MainReactPackage;
 
@@ -40,6 +41,7 @@ public class MainActivity extends ReactActivity {
     protected List<ReactPackage> getPackages() {
         return Arrays.<ReactPackage>asList(
             new MainReactPackage(),
+            new RNSharePackage(),
             new ImagePickerPackage(),
             new ReactMaterialKitPackage(),
             new RNFSPackage()
