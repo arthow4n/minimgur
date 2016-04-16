@@ -254,7 +254,29 @@ class minimgur extends Component {
                         <View>
                             <Subheader text="Operations" />
                             <Label label="Clear local upload history" onPress={() => {
-                                return true;
+                                Alert.alert(
+                                    'Clear Local History',
+                                    'Are you sure to clear local history?',
+                                    [
+                                        {text: 'Cancel', onPress: () => true, style: 'cancel'},
+                                        {text: 'OK', onPress: () => {
+                                            navigator.push({ name: 'initializing'});
+                                            this.setState(Object.assign({}, this.state, {
+                                                results: [],
+                                                history: [],
+                                            }), () => {
+                                                try {
+                                                    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), () => {
+                                                        Toast.show('Cleared local history.', Toast.SHORT);
+                                                        navigator.pop();
+                                                    });
+                                                } catch (err) {
+                                                    console.error(err);
+                                                }
+                                            });
+                                        }},
+                                    ]
+                                )
                             }} eiIcon="trash"/>
                         </View>
                         <View>
@@ -270,7 +292,7 @@ class minimgur extends Component {
                     <View style={styles.scene}>
                         <CameraRollGallery onUpload={(imageURIs) =>{
                             if (imageURIs.length === 0) {
-                                Toast.show('Select at least 1 image to upload.', Toast.SHORT);
+                                Toast.show('Select at least one image to upload.', Toast.SHORT);
                                 return true;
                             }
                             this.uploadMultipleImages(imageURIs);
