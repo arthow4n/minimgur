@@ -131,6 +131,7 @@ class minimgur extends Component {
             <Navigator
                 ref="navigator"
                 initialRoute={{name: 'initializing'}}
+                configureScene={(route, routeStack) => Navigator.SceneConfigs.FloatFromBottomAndroid}
                 renderScene={this.renderScene}
                 navigationBar={(() => {
                     if (!this.state.fullScreen) {
@@ -154,7 +155,7 @@ class minimgur extends Component {
                                     }
                                 }]}
                                 rightIconStyle={{
-                                    margin: 10
+                                    margin: 16
                                 }}
                             />
                         )
@@ -384,7 +385,7 @@ class minimgur extends Component {
             if (this.refs.navigator.getCurrentRoutes().slice(-1)[0].name !== 'uploading') {
                 this.refs.navigator.push({
                     name: 'uploading',
-                    current: 1,
+                    current: 0,
                     total: 1,
                     fileName: response.fileName,
                 });
@@ -493,7 +494,7 @@ class minimgur extends Component {
                                                         Share.open({
                                                             share_URL: image.link,
                                                         }, (e) => console.log(e));
-                                                    }}>
+                                                }}>
                                                     <Text pointerEvents="none"
                                                         style={[styles.mkButtonText]}>
                                                         <IconFA name="share-alt" size={24} />
@@ -570,7 +571,17 @@ class minimgur extends Component {
                         }}>
                         <Text pointerEvents="none"
                             style={[styles.mkButtonTextPrimary, { fontSize: 16 }]}>
-                            Copy Selected URLs to Clipboard
+                            <IconFA name="clipboard" size={24} /> Copy Selected URLs to Clipboard
+                        </Text>
+                    </MKButton>
+                    <MKButton {...mkButtonCommonPropsPrimary} flex={0} width={56} backgroundColor={MKColor.Teal} onPress={() => {
+                            Share.open({
+                                share_text: selectedURLs.join('\n'),
+                            }, (e) => console.log(e));
+                        }}>
+                        <Text pointerEvents="none"
+                            style={[styles.mkButtonTextPrimary, { fontSize: 16 }]}>
+                            <IconFA name="share-alt" size={24} />
                         </Text>
                     </MKButton>
                 </View>
