@@ -3,6 +3,7 @@ import React, {
     AppRegistry,
     AsyncStorage,
     BackAndroid,
+    CameraRoll,
     Clipboard,
     Component,
     Dimensions,
@@ -40,6 +41,7 @@ import XImage from 'react-native-ximage';
 import RNFS from 'react-native-fs';
 
 import Label from './Label.js';
+import CameraRollGallery from './CameraRollGallery.js';
 
 import { CLIENT_ID } from './imgur.config.js';
 
@@ -73,6 +75,7 @@ class minimgur extends Component {
     constructor(props) {
         super(props);
         this.renderScene = this.renderScene.bind(this);
+        this.uploadMultipleImages = this.uploadMultipleImages.bind(this);
         this.uploadToImgur = this.uploadToImgur.bind(this);
         this.copyResultsToClipboard = this.copyResultsToClipboard.bind(this);
         this.state = {};
@@ -86,14 +89,8 @@ class minimgur extends Component {
             } else {
                 // the state on clean start
                 this.setState({
-                    fullScreen: false,
                     options: {
                         autoCopyOnUploadSuccess: true,
-                    },
-                    uploading: '',
-                    uploadProgress: {
-                        index: 1,
-                        length: 1,
                     },
                     results: [],
                     history: [],
@@ -108,11 +105,6 @@ class minimgur extends Component {
     componentDidMount() {
         BackAndroid.addEventListener('hardwareBackPress', function() {
             const currentRouteName = this.refs.navigator.getCurrentRoutes().slice(-1)[0].name;
-            if (this.state.fullScreen) {
-                this.setState(Object.assign({}, this.state, {
-                    fullScreen: false,
-                }));
-            };
             switch (currentRouteName) {
                 case 'home':
                     BackAndroid.exitApp();
@@ -206,7 +198,7 @@ class minimgur extends Component {
                             </MKButton>
                         </View>
                         <View style={styles.homeButtonContainer}>
-                            <MKButton {...mkButtonCommonPropsPrimary} backgroundColor={MKColor.Indigo}>
+                            <MKButton {...mkButtonCommonPropsPrimary} backgroundColor={MKColor.Indigo} onPress={() => navigator.push({ name: 'cameraRoll' })}>
                                 <Text style={styles.mkButtonTextPrimary} >
                                     <IconEI name="image" size={64} />
                                     <IconEI name="plus" size={64} />
@@ -272,14 +264,20 @@ class minimgur extends Component {
                         </View>
                     </View>
                 )
-            case 'uploading':
+            case 'cameraRoll':
                 return (
-                    <View style={styles.container}>
-                        <Text style={{textAlign: 'center', margin: 16, fontSize: 18}}>{this.state.uploading}</Text>
-                        <ProgressBar styleAttr="Large" />
-                        <Text style={{textAlign: 'center', margin: 16}}>{(`Uploading image [${this.state.uploadProgress.index}/${this.state.uploadProgress.index}]`)}</Text>
+                    <View style={styles.scene}>
+                        <CameraRollGallery onUpload={(imageURIs) =>{
+                            if (imageURIs.length === 0) {
+                                Toast.show('Select at least 1 image to upload.', Toast.SHORT);
+                                return true;
+                            }
+                            this.uploadMultipleImages(imageURIs);
+                        }}/>
                     </View>
                 );
+            case 'uploading':
+                return this.renderUpload(route);
             case 'results':
                 return this.renderHistory(this.state.results, true);
             case 'history':
@@ -294,7 +292,22 @@ class minimgur extends Component {
         }
     }
 
+    renderUpload(route) {
+        return (
+            <View style={styles.scene}>
+                <View style={styles.container}>
+                    <Text style={{textAlign: 'center', margin: 16, fontSize: 18}}>{route.fileName}</Text>
+                    <ProgressBar styleAttr="Large" />
+                    <Text style={{textAlign: 'center', margin: 16}}>{(`Uploaded image [${route.current}/${route.total}]`)}</Text>
+                </View>
+            </View>
+        );
+    }
+
     showUploader(source) {
+        this.setState(Object.assign({}, this.state, {
+            results: [],
+        }));
         switch (source) {
             case 'library':
                 ImagePickerManager.launchImageLibrary({}, (response) => this.onUploaderImagePicked(response));
@@ -305,52 +318,108 @@ class minimgur extends Component {
         }
     }
 
-    onUploaderImagePicked(response) {
-        if (response.error) {
-            console.log('ImagePickerManager Error: ', response.error);
-        } else if (!response.didCancel) {
-            this.setState(Object.assign({}, this.state, {
-                uploading: response.fileName,
-                uploadProgress: {
-                    index: 1,
-                    length: 1,
-                },
-            }), () => {
-                if (this.refs.navigator.getCurrentRoutes().slice(-1)[0].name !== 'uploading') {
-                    this.refs.navigator.push({name: 'uploading'});
-                }
-                this.uploadToImgur(response)
+    uploadMultipleImages(imageURIs) {
+        this.setState(Object.assign({}, this.state, {
+            results: [],
+        }));
+        const total = imageURIs.length;
+        let current = 0;
+        imageURIs.forEach((uri, i) => {
+            this.refs.navigator.replace({
+                name: 'uploading',
+                current,
+                total,
+                fileName: 'Uploading Multiple Images',
+            })
+            RNFS.readFile(uri.replace('file:/', ''), 'base64')
+            .then((data) => {
+                this.uploadToImgur({ data })
                 .then((response) => {
+                    current += 1;
+                    this.refs.navigator.replace({
+                        name: 'uploading',
+                        current,
+                        total,
+                        fileName: 'Uploading Multiple Images',
+                    });
                     if (response.success) {
                         const result = {
                             deletehash: response.data.deletehash,
                             id: response.data.id,
                             link: response.data.link.replace('http://', 'https://'),
                         };
+                        const newResults = this.state.results;
+                        newResults[i] = result;
                         this.setState(Object.assign({}, this.state, {
-                            results: [result, ...this.state.results]
+                            results: newResults,
+                            history: [result, ...this.state.history],
                         }), () => {
-                            if (this.state.options.autoCopyOnUploadSuccess) {
-                                this.copyResultsToClipboard(this.state.results.map((image) => image.link));
-                            }
-                            this.setState(Object.assign({}, this.state, {
-                                history: [result, ...this.state.history],
-                            }), () => {
-                                try {
-                                    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), () => {
+                            try {
+                                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), () => {
+                                    if (current === total) {
+                                        if (this.state.options.autoCopyOnUploadSuccess) {
+                                            this.copyResultsToClipboard(this.state.results.map((image) => image.link));
+                                        }
                                         this.refs.navigator.push({name: 'results'});
-                                    });
-                                } catch (err) {
-                                    console.error(err);
-                                }
-                            });
+                                    }
+                                });
+                            } catch (err) {
+                                console.error(err);
+                            }
                         });
                     } else {
-                        console.error(JSON.stringify(response));
+                        const err = JSON.stringify(response)
+                        console.error(err);
                     }
-                })
-                .catch((ex) => console.log(ex));
-            });
+                });
+            })
+            .catch((ex) => console.error(ex));
+        });
+    }
+
+    onUploaderImagePicked(response) {
+        if (response.error) {
+            console.log('ImagePickerManager Error: ', response.error);
+        } else if (!response.didCancel) {
+            if (this.refs.navigator.getCurrentRoutes().slice(-1)[0].name !== 'uploading') {
+                this.refs.navigator.push({
+                    name: 'uploading',
+                    current: 1,
+                    total: 1,
+                    fileName: response.fileName,
+                });
+            }
+            this.uploadToImgur(response)
+            .then((response) => {
+                if (response.success) {
+                    const result = {
+                        deletehash: response.data.deletehash,
+                        id: response.data.id,
+                        link: response.data.link.replace('http://', 'https://'),
+                    };
+                    this.setState(Object.assign({}, this.state, {
+                        results: [result, ...this.state.results]
+                    }), () => {
+                        if (this.state.options.autoCopyOnUploadSuccess) {
+                            this.copyResultsToClipboard(this.state.results.map((image) => image.link));
+                        }
+                        this.setState(Object.assign({}, this.state, {
+                            history: [result, ...this.state.history],
+                        }), () => {
+                            try {
+                                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), () => {
+                                    this.refs.navigator.push({name: 'results'});
+                                });
+                            } catch (err) {
+                                console.error(err);
+                            }
+                        });
+                    });
+                } else {
+                    console.error(JSON.stringify(response));
+                }
+            })
+            .catch((ex) => console.error(ex));
         }
     }
 
@@ -389,7 +458,7 @@ class minimgur extends Component {
             <View style={styles.scene}>
                 <View style={styles.row}>
                     <ListView dataSource={ds}
-                        initialListSize={15}
+                        initialListSize={12}
                         renderSeparator={(sectionId, rowId) => {
                             return (
                                 <View style={{ height: 1, backgroundColor: '#EAEAEA' }} key={`${sectionId}-${rowId}`}></View>
@@ -400,16 +469,10 @@ class minimgur extends Component {
                                 <View style={styles.rowHistory} key={image.deletehash}>
                                     <View style={styles.row}>
                                         <TouchableOpacity onPress={() => {
-                                            this.setState(Object.assign({}, this.state, {
-                                                fullScreen: true,
-                                            }));
-                                            this.refs.navigator.push({
-                                                name: 'showImage',
-                                                url: image.link,
-                                            });
+                                            Linking.openURL(image.link).done();
                                         }}>
-                                            <View>
-                                                <XImage url={image.link.replace(image.id, `${image.id}s`)} style={{ height: 96, width: 96 }} />
+                                            <View style={{ height: 96, width: 96 }}>
+                                                <XImage url={image.link.replace(image.id, `${image.id}b`)} style={{ height: 96, width: 96 }} />
                                             </View>
                                         </TouchableOpacity>
                                         <View style={styles.col}>
@@ -485,13 +548,15 @@ class minimgur extends Component {
                                                         )
                                                     }
                                                 })()}
-                                                <MKCheckbox width={56} checked={isResults} onCheckedChange={(v) => {
-                                                        if (v.checked) {
-                                                            selectedURLs.push(image.link);
-                                                        } else {
-                                                            selectedURLs = selectedURLs.filter((url) => url !== image.link);
-                                                        }
-                                                }}/>
+                                                <View style={styles.row}>
+                                                    <MKCheckbox style={{width: 24, height: 24, margin: 12}} checked={isResults} onCheckedChange={(v) => {
+                                                            if (v.checked) {
+                                                                selectedURLs.push(image.link);
+                                                            } else {
+                                                                selectedURLs = selectedURLs.filter((url) => url !== image.link);
+                                                            }
+                                                    }}/>
+                                                </View>
                                             </View>
                                         </View>
                                     </View>

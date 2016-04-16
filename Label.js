@@ -1,3 +1,7 @@
+/**
+ * Derived from Checkbox of 'react-native-material-design'
+ */
+
 import React, { Component, StyleSheet, PropTypes, Text, View, TouchableHighlight } from 'react-native';
 import { TYPO, PRIMARY, COLOR, PRIMARY_COLORS, THEME_NAME } from './node_modules/react-native-material-design/lib/config.js';
 import IconEI from 'react-native-vector-icons/EvilIcons';
