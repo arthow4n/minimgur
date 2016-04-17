@@ -543,7 +543,7 @@ class minimgur extends Component {
                                                                             {text: 'OK', onPress: () => {
                                                                                 Toast.show(`Deleting ${image.link}`, Toast.SHORT);
                                                                                 fetch('https://api.imgur.com/3/image/' + image.deletehash, {
-                                                                                    method: 'POST',
+                                                                                    method: 'DELETE',
                                                                                     headers: {
                                                                                         Authorization: 'Client-ID ' + CLIENT_ID
                                                                                     },
