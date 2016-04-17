@@ -1,9 +1,13 @@
 {
   "name": "minimgur",
-  "version": "0.0.1",
-  "private": true,
+  "version": "1.0.0",
   "scripts": {
     "start": "node node_modules/react-native/local-cli/cli.js start"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Aysh Su",
+    "email": "hevark@msn.com"
   },
   "dependencies": {
     "react": "^0.14.8",

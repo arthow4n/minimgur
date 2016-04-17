@@ -6,6 +6,5 @@ This project is currently Android only, and will never support iOS by me.
 
 ##Todos
 
-- [   ] (feat) CameraRoll
-- [   ] (enhancement) UI
+- [   ] (feat) built in pinch-zoom original image preview (needed or not?)
 - [   ] (tidy) Make project structure more modulized
