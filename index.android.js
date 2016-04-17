@@ -48,7 +48,13 @@ import { CLIENT_ID } from './imgur.config.js';
 import IconEI from 'react-native-vector-icons/EvilIcons';
 import IconFA from 'react-native-vector-icons/FontAwesome';
 
+const loadingGif = require('./Ajax-loader.gif');
+
 const STORAGE_KEY = '@Minimgur:state';
+
+const WINDOW_HEIGHT = Dimensions.get('window').height;
+
+const RENDER_RANGE = Dimensions.get('window').height * 6;
 
 const mkButtonCommonProps = {
     backgroundColor: MKColor.Silver,
@@ -110,9 +116,6 @@ class minimgur extends Component {
                     BackAndroid.exitApp();
                     break;
                 case 'results':
-                    this.setState(Object.assign({}, this.state, {
-                        results: [],
-                    }));
                     this.refs.navigator.resetTo({name: 'home'});
                     break;
                 case 'uploading':
@@ -482,6 +485,8 @@ class minimgur extends Component {
                 <View style={styles.row}>
                     <ListView dataSource={ds}
                         initialListSize={12}
+                        pageSize={24}
+                        scrollRenderAheadDistance={RENDER_RANGE}
                         renderSeparator={(sectionId, rowId) => {
                             return (
                                 <View style={{ height: 1, backgroundColor: '#EAEAEA' }} key={`${sectionId}-${rowId}`}></View>
@@ -495,7 +500,7 @@ class minimgur extends Component {
                                             Linking.openURL(image.link).done();
                                         }}>
                                             <View style={{ height: 96, width: 96 }}>
-                                                <XImage url={image.link.replace(image.id, `${image.id}b`)} style={{ height: 96, width: 96 }} />
+                                                <XImage defaultSource={loadingGif} url={image.link.replace(image.id, `${image.id}b`)} style={{ height: 96, width: 96 }} />
                                             </View>
                                         </TouchableOpacity>
                                         <View style={styles.col}>

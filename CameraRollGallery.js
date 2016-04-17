@@ -53,10 +53,11 @@ const styles = {
   imageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   imageBadge: {
       position: 'absolute',
+      justifyContent: 'center',
       top: 0,
       right: 0,
       width: 32,
@@ -95,7 +96,7 @@ const WINDOW_HEIGHT = Dimensions.get('window').height;
 
 const RENDER_RANGE = Dimensions.get('window').height * 6;
 
-let PHOTOS_COUNT_BY_FETCH = 128;
+let PHOTOS_COUNT_BY_FETCH = 64;
 
 export default class CameraRollGallery extends Component {
 
@@ -161,12 +162,12 @@ export default class CameraRollGallery extends Component {
     return (
       <View style={styles.container}>
         <ListView
-          initialListSize={PHOTOS_COUNT_BY_FETCH / 4}
-          pageSize={PHOTOS_COUNT_BY_FETCH / 4}
+          initialListSize={PHOTOS_COUNT_BY_FETCH / 2}
+          pageSize={PHOTOS_COUNT_BY_FETCH / 2}
           contentContainerStyle={styles.imageGrid}
           dataSource={this.state.dataSource}
           onEndReached={this.onEndReached.bind(this)}
-          onEndReachedThreshold={360}
+          onEndReachedThreshold={WINDOW_HEIGHT / 2}
           showsVerticalScrollIndicator={false}
           renderRow={(image) => {return (
             <TouchableOpacity onPress={() => {
