@@ -1,6 +1,6 @@
 {
   "name": "minimgur",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "scripts": {
     "start": "node node_modules/react-native/local-cli/cli.js start"
   },
@@ -12,6 +12,7 @@
   "dependencies": {
     "react": "^0.14.8",
     "react-native": "^0.22.2",
+    "react-native-file-picker-intent": "arthow4n/react-native-file-picker-intent",
     "react-native-fs": "arthow4n/react-native-fs",
     "react-native-image-picker": "^0.18.12",
     "react-native-material-design": "^0.3.3",

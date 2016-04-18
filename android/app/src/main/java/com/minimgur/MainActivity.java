@@ -10,6 +10,8 @@ import com.github.xinthink.rnmk.ReactMaterialKitPackage;
 
 import com.rnfs.RNFSPackage;
 
+import com.rnfilepickerintent.RNFilePickerIntentPackage;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -44,7 +46,8 @@ public class MainActivity extends ReactActivity {
             new RNSharePackage(),
             new ImagePickerPackage(),
             new ReactMaterialKitPackage(),
-            new RNFSPackage()
+            new RNFSPackage(),
+            new RNFilePickerIntentPackage()
         );
     }
 }

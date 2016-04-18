@@ -35,7 +35,10 @@ import {
     Toolbar,
 } from 'react-native-material-design';
 
-import { ImagePickerManager } from 'NativeModules';
+import {
+    ImagePickerManager,
+    RNFilePickerIntent,
+ } from 'NativeModules';
 import Share from 'react-native-share';
 import XImage from 'react-native-ximage';
 import RNFS from 'react-native-fs';
@@ -227,6 +230,14 @@ class minimgur extends Component {
                     </View>
                 );
             case 'settings':
+                const optionCheckBoxItems = [
+                    {
+                        value: 'autoCopyOnUploadSuccess', label: 'Automatically copy the result URLs'
+                    },
+                    {
+                        value: 'useMimeTypeIntentSelector', label: 'Use MIME type native selector'
+                    },
+                ];
                 return (
                     <View style={[styles.scene]}>
                         <View>
@@ -236,9 +247,12 @@ class minimgur extends Component {
                                 checked={Object.keys(this.state.options).filter((k) => this.state.options[k])}
                                 onSelect={(selected) => {
                                     const newOptions = {};
-                                    for (var key in this.state.options) {
+                                    console.log(selected);
+                                    optionCheckBoxItems.forEach( (item) => {
+                                        const key = item.value;
                                         newOptions[key] = selected.indexOf(key) !== -1;
-                                    }
+                                    });
+                                    console.log(newOptions);
                                     this.setState(Object.assign({}, this.state, {
                                         options: newOptions,
                                     }), () => {
@@ -249,9 +263,7 @@ class minimgur extends Component {
                                         }
                                     });
                                 }}
-                                items={[{
-                                    value: 'autoCopyOnUploadSuccess', label: 'Automatically copy the result URLs'
-                                }]}
+                                items={optionCheckBoxItems}
                             />
                         </View>
                         <View>
@@ -336,7 +348,15 @@ class minimgur extends Component {
         }));
         switch (source) {
             case 'library':
-                ImagePickerManager.launchImageLibrary({}, (response) => this.onUploaderImagePicked(response));
+                if (this.state.options.useMimeTypeIntentSelector) {
+                    RNFilePickerIntent.intentForFile("image/*", (response) => {
+                        if (!response.didCancel) {
+                            this.uploadMultipleImages([response.uri]);
+                        }
+                    });
+                } else {
+                    ImagePickerManager.launchImageLibrary({}, (response) => this.onUploaderImagePicked(response));
+                }
                 break;
             case 'camera':
                 ImagePickerManager.launchCamera({mediaType: 'photo'}, (response) => this.onUploaderImagePicked(response));
@@ -355,7 +375,7 @@ class minimgur extends Component {
                 name: 'uploading',
                 current,
                 total,
-                fileName: 'Uploading Multiple Images',
+                fileName: ( imageURIs.length === 1 ? imageURIs[0].split('/').slice(-1)[0] : 'Uploading Multiple Images'),
             })
             RNFS.readFile(uri.replace('file:/', ''), 'base64')
             .then((data) => {
@@ -366,7 +386,7 @@ class minimgur extends Component {
                         name: 'uploading',
                         current,
                         total,
-                        fileName: 'Uploading Multiple Images',
+                        fileName: ( imageURIs.length === 1 ? imageURIs[0].split('/').slice(-1)[0] : 'Uploading Multiple Images'),
                     });
                     if (response.success) {
                         const result = {
@@ -394,8 +414,9 @@ class minimgur extends Component {
                             }
                         });
                     } else {
-                        const err = JSON.stringify(response)
-                        console.error(err);
+                        console.error(JSON.stringify(response));
+                        Toast.show('Failed to upload selected image.', Toast.SHORT);
+                        this.refs.navigator.resetTo({name: 'home'});
                     }
                 });
             })
@@ -443,6 +464,8 @@ class minimgur extends Component {
                     });
                 } else {
                     console.error(JSON.stringify(response));
+                    Toast.show('Failed to upload selected image.', Toast.SHORT);
+                    this.refs.navigator.resetTo({name: 'home'});
                 }
             })
             .catch((ex) => console.error(ex));
