@@ -107,7 +107,7 @@ class minimgur extends Component {
             }
             return true;
         }.bind(this));
-        RNFileIntent.getRecievedFile((response) => this.handleIncomingIntent(response));
+        RNFileIntent.getReceivedFile((response) => this.handleIncomingIntent(response));
     }
 
     handleIncomingIntent(response) {

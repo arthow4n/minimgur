@@ -12,6 +12,7 @@
   "dependencies": {
     "react": "^0.14.8",
     "react-native": "^0.22.2",
+    "react-native-file-intent": "arthow4n/react-native-file-intent",
     "react-native-fs": "arthow4n/react-native-fs",
     "react-native-image-picker": "^0.18.12",
     "react-native-material-design": "^0.3.3",
