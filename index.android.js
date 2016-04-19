@@ -37,7 +37,7 @@ import {
 
 import {
     ImagePickerManager,
-    RNFilePickerIntent,
+    RNFileIntent,
  } from 'NativeModules';
 import Share from 'react-native-share';
 import XImage from 'react-native-ximage';
@@ -87,28 +87,7 @@ class minimgur extends Component {
         this.uploadMultipleImages = this.uploadMultipleImages.bind(this);
         this.uploadToImgur = this.uploadToImgur.bind(this);
         this.copyResultsToClipboard = this.copyResultsToClipboard.bind(this);
-        this.state = {};
-    }
-
-    async loadInitialState() {
-        try {
-            const state = await AsyncStorage.getItem(STORAGE_KEY);
-            if (state !== null) {
-                this.setState(JSON.parse(state));
-            } else {
-                // the state on clean start
-                this.setState({
-                    options: {
-                        autoCopyOnUploadSuccess: true,
-                    },
-                    results: [],
-                    history: [],
-                });
-            }
-        } catch (error) {
-            console.error(error);
-        }
-        this.refs.navigator.resetTo({name: 'home'});
+        this.state = { version: '1.1.0' }; // use previous version to trigger notification in renderScene()
     }
 
     componentDidMount() {
@@ -128,8 +107,40 @@ class minimgur extends Component {
             }
             return true;
         }.bind(this));
+        RNFileIntent.getRecievedFile((response) => this.handleIncomingIntent(response));
+    }
 
-        this.loadInitialState().done();
+    handleIncomingIntent(response) {
+        if (Array.isArray(response) && response.length !== 0) {
+            this.loadInitialState(() => {
+                this.uploadMultipleImages(response.map((file) => file.uri));
+            });
+        } else {
+            this.loadInitialState(() => {
+                this.refs.navigator.resetTo({name: 'home'});
+            });
+        }
+    }
+
+    loadInitialState(callback) {
+        AsyncStorage.getItem(STORAGE_KEY, (err, state) => {
+            if (err) {
+                throw err;
+            }
+            if (state !== null) {
+                this.setState(Object.assign({}, this.state, JSON.parse(state)), callback);
+            } else {
+                // the state on clean start
+                this.setState(Object.assign({}, this.state, {
+                    options: {
+                        autoCopyOnUploadSuccess: true,
+                        useMimeTypeIntentSelector: false,
+                    },
+                    results: [],
+                    history: [],
+                }), callback);
+            }
+        });
     }
 
     render() {
@@ -172,6 +183,29 @@ class minimgur extends Component {
     }
 
     renderScene(route, navigator) {
+        // show app version update announcement
+        if (this.state.version !== '1.2.0' && route.name !== 'initializing') {
+            Alert.alert(
+                'New Feature! 新功能：',
+                'You can now share images from other apps to Minimgur, Minimgur will upload them for you.\n\n現在 Minimgur 可以為你上傳從其他 app 分享過來的圖片！試試看在其他 app 中使用分享功能吧！',
+                [
+                    {
+                        text: 'OK',
+                        onPress: () => {
+                            this.setState(Object.assign({}, this.state, {
+                                version: '1.2.0'
+                            }), () => {
+                                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
+                                    if (err) {
+                                        throw err;
+                                    }
+                                });
+                            });
+                        }
+                    }
+                ]
+            );
+        }
         switch (route.name) {
             case 'initializing':
                 return (
@@ -256,11 +290,11 @@ class minimgur extends Component {
                                     this.setState(Object.assign({}, this.state, {
                                         options: newOptions,
                                     }), () => {
-                                        try {
-                                            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
-                                        } catch (err) {
-                                            console.error(err);
-                                        }
+                                        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
+                                            if (err) {
+                                                throw errr;
+                                            }
+                                        });
                                     });
                                 }}
                                 items={optionCheckBoxItems}
@@ -280,14 +314,13 @@ class minimgur extends Component {
                                                 results: [],
                                                 history: [],
                                             }), () => {
-                                                try {
-                                                    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), () => {
-                                                        Toast.show('Cleared local history.', Toast.SHORT);
-                                                        navigator.pop();
-                                                    });
-                                                } catch (err) {
-                                                    console.error(err);
-                                                }
+                                                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
+                                                    if (err) {
+                                                        throw err;
+                                                    }
+                                                    Toast.show('Cleared local history.', Toast.SHORT);
+                                                    navigator.pop();
+                                                });
                                             });
                                         }},
                                     ]
@@ -349,7 +382,7 @@ class minimgur extends Component {
         switch (source) {
             case 'library':
                 if (this.state.options.useMimeTypeIntentSelector) {
-                    RNFilePickerIntent.intentForFile("image/*", (response) => {
+                    RNFileIntent.requestFile("image/*", (response) => {
                         if (!response.didCancel) {
                             this.uploadMultipleImages([response.uri]);
                         }
@@ -400,18 +433,17 @@ class minimgur extends Component {
                             results: newResults,
                             history: [result, ...this.state.history],
                         }), () => {
-                            try {
-                                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), () => {
-                                    if (current === total) {
-                                        if (this.state.options.autoCopyOnUploadSuccess) {
-                                            this.copyResultsToClipboard(this.state.results.map((image) => image.link));
-                                        }
-                                        this.refs.navigator.push({name: 'results'});
+                            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
+                                if (err) {
+                                    throw err;
+                                }
+                                if (current === total) {
+                                    if (this.state.options.autoCopyOnUploadSuccess) {
+                                        this.copyResultsToClipboard(this.state.results.map((image) => image.link));
                                     }
-                                });
-                            } catch (err) {
-                                console.error(err);
-                            }
+                                    this.refs.navigator.push({name: 'results'});
+                                }
+                            });
                         });
                     } else {
                         console.error(JSON.stringify(response));
@@ -453,13 +485,12 @@ class minimgur extends Component {
                         this.setState(Object.assign({}, this.state, {
                             history: [result, ...this.state.history],
                         }), () => {
-                            try {
-                                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), () => {
-                                    this.refs.navigator.push({name: 'results'});
-                                });
-                            } catch (err) {
-                                console.error(err);
-                            }
+                            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
+                                if (err) {
+                                    throw err;
+                                }
+                                this.refs.navigator.push({name: 'results'});
+                            });
                         });
                     });
                 } else {
@@ -579,11 +610,11 @@ class minimgur extends Component {
                                                                                                 return historyImage.deletehash !== image.deletehash;
                                                                                             })
                                                                                         }), () => {
-                                                                                            try {
-                                                                                                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
-                                                                                            } catch (err) {
-                                                                                                console.error(err);
-                                                                                            }
+                                                                                            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
+                                                                                                if (err) {
+                                                                                                    throw err;
+                                                                                                }
+                                                                                            });
                                                                                         });
                                                                                     }
                                                                                 })

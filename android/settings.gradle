@@ -13,5 +13,5 @@ project(':react-native-fs').projectDir = new File(settingsDir, '../node_modules/
 include ':react-native-share'
 project(':react-native-share').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-share/android')
 
-include ':react-native-file-picker-intent'
-project(':react-native-file-picker-intent').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-file-picker-intent/android')
+include ':react-native-file-intent'
+project(':react-native-file-intent').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-file-intent/android')
