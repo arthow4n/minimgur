@@ -7,6 +7,7 @@ import com.facebook.react.shell.MainReactPackage;
 
 import com.imagepicker.ImagePickerPackage;
 import com.github.xinthink.rnmk.ReactMaterialKitPackage;
+import com.babisoft.ReactNativeLocalization.ReactNativeLocalizationPackage;
 
 import com.rnfs.RNFSPackage;
 
@@ -47,7 +48,8 @@ public class MainActivity extends ReactActivity {
             new ImagePickerPackage(),
             new ReactMaterialKitPackage(),
             new RNFSPackage(),
-            new RNFileIntentPackage()
+            new RNFileIntentPackage(),
+            new ReactNativeLocalizationPackage()
         );
     }
 }

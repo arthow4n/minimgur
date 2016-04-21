@@ -11,6 +11,7 @@ import React, {
     ListView,
     Navigator,
     ProgressBarAndroid as ProgressBar,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -31,9 +32,12 @@ import {
 import {
     Card,
     CheckboxGroup,
+    RadioButtonGroup,
     Subheader,
     Toolbar,
 } from 'react-native-material-design';
+
+import DIC from './dictionary.config.js';
 
 import {
     ImagePickerManager,
@@ -87,7 +91,7 @@ class minimgur extends Component {
         this.uploadMultipleImages = this.uploadMultipleImages.bind(this);
         this.uploadToImgur = this.uploadToImgur.bind(this);
         this.copyResultsToClipboard = this.copyResultsToClipboard.bind(this);
-        this.state = { version: '1.1.0' }; // use previous version to trigger notification in renderScene()
+        this.state = { version: '1.2.0' }; // use previous version to trigger notification in renderScene()
     }
 
     componentDidMount() {
@@ -128,13 +132,19 @@ class minimgur extends Component {
                 throw err;
             }
             if (state !== null) {
-                this.setState(Object.assign({}, this.state, JSON.parse(state)), callback);
+                this.setState(Object.assign({}, this.state, JSON.parse(state)), () => {
+                    if (this.state.options.displayLanguage && this.state.options.displayLanguage !== 'default') {
+                        DIC.setLanguage(this.state.options.displayLanguage);
+                    }
+                    callback();
+                });
             } else {
                 // the state on clean start
                 this.setState(Object.assign({}, this.state, {
                     options: {
                         autoCopyOnUploadSuccess: true,
                         useMimeTypeIntentSelector: false,
+                        displayLanguage: 'default',
                     },
                     results: [],
                     history: [],
@@ -184,16 +194,16 @@ class minimgur extends Component {
 
     renderScene(route, navigator) {
         // show app version update announcement
-        if (this.state.version !== '1.2.0' && route.name !== 'initializing') {
+        if (this.state.version !== '1.3.0' && route.name !== 'initializing') {
             Alert.alert(
-                'New Feature! 新功能：',
-                'You can now share images from other apps to Minimgur, Minimgur will upload them for you.\n\n現在 Minimgur 可以為你上傳從其他 app 分享過來的圖片！試試看在其他 app 中使用分享功能吧！',
+                DIC.newFeature,
+                DIC.newFeatureDescription,
                 [
                     {
                         text: 'OK',
                         onPress: () => {
                             this.setState(Object.assign({}, this.state, {
-                                version: '1.2.0'
+                                version: '1.3.0' //current version
                             }), () => {
                                 AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
                                     if (err) {
@@ -223,7 +233,7 @@ class minimgur extends Component {
                                 </Text>
                                 <Text pointerEvents="none"
                                     style={styles.mkButtonText}>
-                                    Upload from Camera Shot
+                                    {DIC.uploadFromCamera}
                                 </Text>
                             </MKButton>
                         </View>
@@ -234,7 +244,7 @@ class minimgur extends Component {
                                 </Text>
                                 <Text pointerEvents="none"
                                     style={styles.mkButtonText}>
-                                    Upload from Native Selector
+                                    {DIC.uploadFromNativeSelector}
                                 </Text>
                             </MKButton>
                         </View>
@@ -246,7 +256,7 @@ class minimgur extends Component {
                                 </Text>
                                 <Text pointerEvents="none"
                                     style={styles.mkButtonTextPrimary}>
-                                    Select from Recent Images
+                                    {DIC.uploadFromGallery}
                                 </Text>
                             </MKButton>
                         </View>
@@ -257,7 +267,7 @@ class minimgur extends Component {
                                 </Text>
                                 <Text pointerEvents="none"
                                     style={styles.mkButtonText}>
-                                    Show History
+                                    {DIC.showHistory}
                                 </Text>
                             </MKButton>
                         </View>
@@ -266,27 +276,25 @@ class minimgur extends Component {
             case 'settings':
                 const optionCheckBoxItems = [
                     {
-                        value: 'autoCopyOnUploadSuccess', label: 'Automatically copy the result URLs'
+                        value: 'autoCopyOnUploadSuccess', label: DIC.automaticallyCopyResultURLs
                     },
                     {
-                        value: 'useMimeTypeIntentSelector', label: 'Use MIME type native selector'
+                        value: 'useMimeTypeIntentSelector', label: DIC.useMIMETypeSelector
                     },
                 ];
                 return (
-                    <View style={[styles.scene]}>
+                    <ScrollView style={[styles.scene]}>
                         <View>
-                            <Subheader text="Options" />
+                            <Subheader text={DIC.options} />
                             <CheckboxGroup
                                 primary="paperTeal"
                                 checked={Object.keys(this.state.options).filter((k) => this.state.options[k])}
                                 onSelect={(selected) => {
-                                    const newOptions = {};
-                                    console.log(selected);
+                                    const newOptions = this.state.options;
                                     optionCheckBoxItems.forEach( (item) => {
                                         const key = item.value;
                                         newOptions[key] = selected.indexOf(key) !== -1;
                                     });
-                                    console.log(newOptions);
                                     this.setState(Object.assign({}, this.state, {
                                         options: newOptions,
                                     }), () => {
@@ -301,11 +309,48 @@ class minimgur extends Component {
                             />
                         </View>
                         <View>
-                            <Subheader text="Operations" />
-                            <Label label="Clear local upload history" onPress={() => {
+                            <Subheader text={DIC.displayLanguage} />
+                            <RadioButtonGroup
+                                primary="paperTeal"
+                                selected={this.state.options.displayLanguage || 'default'}
+                                items={[{
+                                    value: 'default', label: DIC.systemLocale
+                                }, {
+                                    value: 'en', label: 'English'
+                                }, {
+                                    value: 'zh', label: '繁體中文'
+                                }]}
+                                onSelect={(selected) => {
+                                    const originalLanguage = this.state.options.displayLanguage;
+                                    const newOptions = this.state.options;
+                                    newOptions.displayLanguage = selected;
+                                    this.setState(Object.assign({}, this.state, {
+                                        options: newOptions,
+                                    }), () => {
+                                        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
+                                            if (err) {
+                                                throw errr;
+                                            }
+                                            if (selected !== originalLanguage) {
+                                                if (selected === 'default') {
+                                                    DIC.setLanguage(DIC.getInterfaceLanguage());
+                                                    this.setState(this.state);
+                                                } else {
+                                                    DIC.setLanguage(selected);
+                                                    this.setState(this.state);
+                                                }
+                                            }
+                                        });
+                                    });
+                                }}
+                            />
+                        </View>
+                        <View>
+                            <Subheader text={DIC.operations} />
+                            <Label label={DIC.clearLocalUploadHistory} onPress={() => {
                                 Alert.alert(
-                                    'Clear Local History',
-                                    'Are you sure to clear local history?',
+                                    DIC.clearLocalUploadHistoryPrompt,
+                                    DIC.clearLocalUploadHistoryDescription,
                                     [
                                         {text: 'Cancel', onPress: () => true, style: 'cancel'},
                                         {text: 'OK', onPress: () => {
@@ -318,7 +363,7 @@ class minimgur extends Component {
                                                     if (err) {
                                                         throw err;
                                                     }
-                                                    Toast.show('Cleared local history.', Toast.SHORT);
+                                                    Toast.show(DIC.clearedLocalHistory, Toast.SHORT);
                                                     navigator.pop();
                                                 });
                                             });
@@ -328,19 +373,19 @@ class minimgur extends Component {
                             }} eiIcon="trash"/>
                         </View>
                         <View>
-                            <Subheader text="About" />
-                            <Label label="Github repository: arthow4n/minimgur" onPress={() => {
+                            <Subheader text={DIC.about} />
+                            <Label label={ DIC.githubRepository + ": arthow4n/minimgur"} onPress={() => {
                                 Linking.openURL('https://github.com/arthow4n/minimgur').done();
                             }} eiIcon="sc-github"/>
                         </View>
-                    </View>
+                    </ScrollView>
                 )
             case 'cameraRoll':
                 return (
                     <View style={styles.scene}>
                         <CameraRollGallery onUpload={(imageURIs) =>{
                             if (imageURIs.length === 0) {
-                                Toast.show('Select at least one image to upload.', Toast.SHORT);
+                                Toast.show(DIC.selectAtLeastOneImageToUpload, Toast.SHORT);
                                 return true;
                             }
                             this.uploadMultipleImages(imageURIs);
@@ -369,7 +414,7 @@ class minimgur extends Component {
                 <View style={styles.container}>
                     <Text style={{textAlign: 'center', margin: 16, fontSize: 18}}>{route.fileName}</Text>
                     <ProgressBar styleAttr="Large" />
-                    <Text style={{textAlign: 'center', margin: 16}}>{(`Uploaded image [${route.current}/${route.total}]`)}</Text>
+                    <Text style={{textAlign: 'center', margin: 16}}>{(DIC.uploadedImages + ' ' + `[${route.current}/${route.total}]`)}</Text>
                 </View>
             </View>
         );
@@ -408,7 +453,7 @@ class minimgur extends Component {
                 name: 'uploading',
                 current,
                 total,
-                fileName: ( imageURIs.length === 1 ? imageURIs[0].split('/').slice(-1)[0] : 'Uploading Multiple Images'),
+                fileName: ( imageURIs.length === 1 ? imageURIs[0].split('/').slice(-1)[0] : DIC.uploadingMultipleImages ),
             })
             RNFS.readFile(uri.replace('file:/', ''), 'base64')
             .then((data) => {
@@ -419,7 +464,7 @@ class minimgur extends Component {
                         name: 'uploading',
                         current,
                         total,
-                        fileName: ( imageURIs.length === 1 ? imageURIs[0].split('/').slice(-1)[0] : 'Uploading Multiple Images'),
+                        fileName: ( imageURIs.length === 1 ? imageURIs[0].split('/').slice(-1)[0] : DIC.uploadingMultipleImages ),
                     });
                     if (response.success) {
                         const result = {
@@ -446,8 +491,8 @@ class minimgur extends Component {
                             });
                         });
                     } else {
-                        console.error(JSON.stringify(response));
-                        Toast.show('Failed to upload selected image.', Toast.SHORT);
+                        console.error(response);
+                        Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
                         this.refs.navigator.resetTo({name: 'home'});
                     }
                 });
@@ -494,8 +539,8 @@ class minimgur extends Component {
                         });
                     });
                 } else {
-                    console.error(JSON.stringify(response));
-                    Toast.show('Failed to upload selected image.', Toast.SHORT);
+                    console.error(response);
+                    Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
                     this.refs.navigator.resetTo({name: 'home'});
                 }
             })
@@ -590,12 +635,12 @@ class minimgur extends Component {
                                                         return (
                                                             <MKButton {...mkButtonCommonProps} onPress={() => {
                                                                     Alert.alert(
-                                                                        'Delete Remote Image',
-                                                                        `Are you sure to delete image: \n${image.link}?`,
+                                                                        DIC.deleteRemoteImage,
+                                                                        DIC.deleteRemoteImageDescription + '\n' + image.link,
                                                                         [
-                                                                            {text: 'Cancel', onPress: () => true, style: 'cancel'},
-                                                                            {text: 'OK', onPress: () => {
-                                                                                Toast.show(`Deleting ${image.link}`, Toast.SHORT);
+                                                                            {text: DIC.cancel, onPress: () => true, style: 'cancel'},
+                                                                            {text: DIC.ok, onPress: () => {
+                                                                                Toast.show(DIC.deletingRemoteImage + image.link, Toast.SHORT);
                                                                                 fetch('https://api.imgur.com/3/image/' + image.deletehash, {
                                                                                     method: 'DELETE',
                                                                                     headers: {
@@ -652,7 +697,7 @@ class minimgur extends Component {
                         }}>
                         <Text pointerEvents="none"
                             style={[styles.mkButtonTextPrimary, { fontSize: 16 }]}>
-                            <IconFA name="clipboard" size={24} /> Copy Selected URLs to Clipboard
+                            <IconFA name="clipboard" size={24} /> {DIC.copySelectedURLs}
                         </Text>
                     </MKButton>
                     <MKButton {...mkButtonCommonPropsPrimary} flex={0} width={56} backgroundColor={MKColor.Teal} onPress={() => {
@@ -672,7 +717,7 @@ class minimgur extends Component {
 
     copyResultsToClipboard(arrayOfURLs) {
         Clipboard.setString(arrayOfURLs.join('\n'));
-        Toast.show('Selected URL(s) have been copied to the clipboard.', Toast.SHORT);
+        Toast.show(DIC.copiedSelectedURLsToClipboard, Toast.SHORT);
     }
 }
 

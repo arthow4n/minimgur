@@ -15,3 +15,6 @@ project(':react-native-share').projectDir = new File(rootProject.projectDir, '..
 
 include ':react-native-file-intent'
 project(':react-native-file-intent').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-file-intent/android')
+
+include ':ReactNativeLocalization', ':app'
+project(':ReactNativeLocalization').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-localization/android')

@@ -20,6 +20,8 @@ import {
     MKColor,
 } from 'react-native-material-kit';
 
+import DIC from './dictionary.config.js';
+
 const mkButtonCommonPropsPrimary = {
     backgroundColor: MKColor.Silver,
     rippleColor: 'rgba(255,255,255,0.2)',
@@ -220,7 +222,7 @@ export default class CameraRollGallery extends Component {
                 }}>
                 <Text pointerEvents="none"
                     style={[styles.mkButtonTextPrimary, { fontSize: 16 }]}>
-                    Upload select images
+                    {DIC.uploadSelectedImages}
                 </Text>
             </MKButton>
         </View>

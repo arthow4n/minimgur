@@ -129,4 +129,5 @@ dependencies {
     compile project(':react-native-image-picker')
     compile project(':RNMaterialKit')
     compile project(':react-native-file-intent')
+    compile project(':ReactNativeLocalization')
 }
