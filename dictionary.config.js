@@ -17,7 +17,7 @@ const dictionary = new LocalizedStrings({
         selectAtLeastOneImageToUpload: 'Select at least one image to upload.',
 
         // Scene: Uploading
-        uploadMultipleImages: 'Uploading multiple images...',
+        uploadingMultipleImages: 'Uploading multiple images...',
         uploadedImages: 'Uploaded images',
         failedToUploadSelectedImage: 'Failed to upload selected image.',
 

@@ -412,7 +412,7 @@ class minimgur extends Component {
         return (
             <View style={styles.scene}>
                 <View style={styles.container}>
-                    <Text style={{textAlign: 'center', margin: 16, fontSize: 18}}>{route.fileName}</Text>
+                    <Text style={{textAlign: 'center', margin: 16, fontSize: 18}}>{(route.fileName !== false ? route.fileName : DIC.uploadingMultipleImages)}</Text>
                     <ProgressBar styleAttr="Large" />
                     <Text style={{textAlign: 'center', margin: 16}}>{(DIC.uploadedImages + ' ' + `[${route.current}/${route.total}]`)}</Text>
                 </View>
@@ -453,7 +453,7 @@ class minimgur extends Component {
                 name: 'uploading',
                 current,
                 total,
-                fileName: ( imageURIs.length === 1 ? imageURIs[0].split('/').slice(-1)[0] : DIC.uploadingMultipleImages ),
+                fileName: ( imageURIs.length === 1 ? imageURIs[0].split('/').slice(-1)[0] : false ),
             })
             RNFS.readFile(uri.replace('file:/', ''), 'base64')
             .then((data) => {
@@ -464,7 +464,7 @@ class minimgur extends Component {
                         name: 'uploading',
                         current,
                         total,
-                        fileName: ( imageURIs.length === 1 ? imageURIs[0].split('/').slice(-1)[0] : DIC.uploadingMultipleImages ),
+                        fileName: ( imageURIs.length === 1 ? imageURIs[0].split('/').slice(-1)[0] : false ),
                     });
                     if (response.success) {
                         const result = {
