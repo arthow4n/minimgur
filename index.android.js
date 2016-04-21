@@ -200,7 +200,7 @@ class minimgur extends Component {
                 DIC.newFeatureDescription,
                 [
                     {
-                        text: 'OK',
+                        text: DIC.ok,
                         onPress: () => {
                             this.setState(Object.assign({}, this.state, {
                                 version: '1.3.0' //current version
