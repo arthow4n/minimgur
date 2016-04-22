@@ -10,6 +10,7 @@
     "email": "hevark@msn.com"
   },
   "dependencies": {
+    "async-es": "^2.0.0-rc.3",
     "react": "^0.14.8",
     "react-native": "^0.22.2",
     "react-native-file-intent": "arthow4n/react-native-file-intent",

@@ -55,6 +55,8 @@ import { CLIENT_ID } from './imgur.config.js';
 import IconEI from 'react-native-vector-icons/EvilIcons';
 import IconFA from 'react-native-vector-icons/FontAwesome';
 
+import mapLimit from 'async-es/mapLimit';
+
 const loadingGif = require('./Ajax-loader.gif');
 
 const STORAGE_KEY = '@Minimgur:state';
@@ -62,6 +64,8 @@ const STORAGE_KEY = '@Minimgur:state';
 const WINDOW_HEIGHT = Dimensions.get('window').height;
 
 const RENDER_RANGE = Dimensions.get('window').height * 6;
+
+const PARALLEL_UPLOAD_SESSIONS_LIMIT = 5;
 
 const mkButtonCommonProps = {
     backgroundColor: MKColor.Silver,
@@ -91,7 +95,7 @@ class minimgur extends Component {
         this.uploadMultipleImages = this.uploadMultipleImages.bind(this);
         this.uploadToImgur = this.uploadToImgur.bind(this);
         this.copyResultsToClipboard = this.copyResultsToClipboard.bind(this);
-        this.state = { version: '1.2.0' }; // use previous version to trigger notification in renderScene()
+        this.state = { version: '1.3.0' }; // use previous version to trigger notification in renderScene()
     }
 
     componentDidMount() {
@@ -194,7 +198,7 @@ class minimgur extends Component {
 
     renderScene(route, navigator) {
         // show app version update announcement
-        if (this.state.version !== '1.3.0' && route.name !== 'initializing') {
+        if (this.state.version !== '1.4.0' && route.name !== 'initializing') {
             Alert.alert(
                 DIC.newFeature,
                 DIC.newFeatureDescription,
@@ -203,7 +207,7 @@ class minimgur extends Component {
                         text: DIC.ok,
                         onPress: () => {
                             this.setState(Object.assign({}, this.state, {
-                                version: '1.3.0' //current version
+                                version: '1.4.0' //current version
                             }), () => {
                                 AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
                                     if (err) {
@@ -443,18 +447,15 @@ class minimgur extends Component {
     }
 
     uploadMultipleImages(imageURIs) {
-        this.setState(Object.assign({}, this.state, {
-            results: [],
-        }));
         const total = imageURIs.length;
         let current = 0;
-        imageURIs.forEach((uri, i) => {
+        mapLimit(imageURIs, PARALLEL_UPLOAD_SESSIONS_LIMIT, (uri, resolve) => {
             this.refs.navigator.replace({
                 name: 'uploading',
                 current,
                 total,
                 fileName: ( imageURIs.length === 1 ? imageURIs[0].split('/').slice(-1)[0] : false ),
-            })
+            });
             RNFS.readFile(uri.replace('file:/', ''), 'base64')
             .then((data) => {
                 this.uploadToImgur({ data })
@@ -472,32 +473,50 @@ class minimgur extends Component {
                             id: response.data.id,
                             link: response.data.link.replace('http://', 'https://'),
                         };
-                        const newResults = this.state.results;
-                        newResults[i] = result;
-                        this.setState(Object.assign({}, this.state, {
-                            results: newResults,
-                            history: [result, ...this.state.history],
-                        }), () => {
-                            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
-                                if (err) {
-                                    throw err;
-                                }
-                                if (current === total) {
-                                    if (this.state.options.autoCopyOnUploadSuccess) {
-                                        this.copyResultsToClipboard(this.state.results.map((image) => image.link));
-                                    }
-                                    this.refs.navigator.push({name: 'results'});
-                                }
-                            });
-                        });
+                        resolve(null, result);
                     } else {
-                        console.error(response);
                         Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
-                        this.refs.navigator.resetTo({name: 'home'});
+                        // handle occured error in main callback instead of mapLimit itself,
+                        // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
+                        resolve(null, false);
                     }
                 });
             })
-            .catch((ex) => console.error(ex));
+            .catch((ex) => {
+                Toast.show(DIC.failedToReadSelectedImage, Toast.SHORT);
+                resolve(null, false);
+            });
+        }, (err, results) => {
+            filteredResults = results.filter((result) => {
+                if (result) {
+                    console.warn(result.link);
+                } else {
+                    console.warn(result);
+                }
+                return result;
+            });
+            if (filteredResults.length === 0) {
+                Toast.show(DIC.allUploadActionsAreFailed, Toast.SHORT);
+                this.refs.navigator.resetTo({name: 'home'});
+            } else {
+                this.setState(Object.assign({}, this.state, {
+                    results: filteredResults,
+                    history: filteredResults.concat(this.state.history),
+                }), () => {
+                    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
+                        if (err) {
+                            throw err;
+                        }
+                        this.refs.navigator.push({name: 'results'});
+                        if (this.state.options.autoCopyOnUploadSuccess) {
+                            this.copyResultsToClipboard(results.map((image) => image.link));
+                        }
+                        if (results.length !== filteredResults.length) {
+                            Toast.show( (results.length - filteredResults.length) + ' ' + DIC.numUploadActionsAreFailed, Toast.SHORT);
+                        }
+                    });
+                });
+            }
         });
     }
 
@@ -522,29 +541,25 @@ class minimgur extends Component {
                         link: response.data.link.replace('http://', 'https://'),
                     };
                     this.setState(Object.assign({}, this.state, {
-                        results: [result, ...this.state.results]
+                        results: [result],
+                        history: [result].concat(this.state.history),
                     }), () => {
-                        if (this.state.options.autoCopyOnUploadSuccess) {
-                            this.copyResultsToClipboard(this.state.results.map((image) => image.link));
-                        }
-                        this.setState(Object.assign({}, this.state, {
-                            history: [result, ...this.state.history],
-                        }), () => {
-                            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
-                                if (err) {
-                                    throw err;
-                                }
-                                this.refs.navigator.push({name: 'results'});
-                            });
+                        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
+                            if (err) {
+                                throw err;
+                            }
+                            this.refs.navigator.push({name: 'results'});
+                            if (this.state.options.autoCopyOnUploadSuccess) {
+                                this.copyResultsToClipboard(this.state.results.map((image) => image.link));
+                            }
                         });
                     });
                 } else {
-                    console.error(response);
                     Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
                     this.refs.navigator.resetTo({name: 'home'});
                 }
             })
-            .catch((ex) => console.error(ex));
+            .catch((ex) => Toast.show(DIC.failedToReadSelectedImage, Toast.SHORT));
         }
     }
 

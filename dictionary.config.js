@@ -4,7 +4,7 @@ const dictionary = new LocalizedStrings({
     en: {
         // upgrade notes
         newFeature: 'New Feature: ',
-        newFeatureDescription: 'Minimgur is now localized!\nYou may override display language in Settings.',
+        newFeatureDescription: '- Improved upload speed.\n- Fixed the crash caused by uploading large amount of selected images.',
 
         // Scene: Home
         uploadFromCamera: 'Take photo & upload',
@@ -19,7 +19,10 @@ const dictionary = new LocalizedStrings({
         // Scene: Uploading
         uploadingMultipleImages: 'Uploading multiple images...',
         uploadedImages: 'Uploaded images',
-        failedToUploadSelectedImage: 'Failed to upload selected image.',
+        failedToUploadSelectedImage: 'Failed to upload a image,\ntrying to finish rest upload operations.',
+        failedToReadSelectedImage: 'Failed to read selected image file.',
+        allUploadActionsAreFailed: 'Failed to upload selected image.',
+        numUploadActionsAreFailed: 'image(s) failed to upload.',
 
         // Scene: Histroy (Results)
         copySelectedURLs: 'Copy selected URLs to clipboard',
@@ -49,7 +52,7 @@ const dictionary = new LocalizedStrings({
     zh: {
         // upgrade notes
         newFeature: '新功能: ',
-        newFeatureDescription: 'Minimgur 中文化了！\n您可以在設定頁面中切回英文介面。',
+        newFeatureDescription: '- 提升了多檔案時的上傳速度\n- 修正因同時上傳大量圖片而造成的閃退問題。',
 
         // Scene: Home
         uploadFromCamera: '拍照並上傳',
@@ -64,7 +67,10 @@ const dictionary = new LocalizedStrings({
         // Scene: Uploading
         uploadingMultipleImages: '正在上傳圖片...',
         uploadedImages: '已上傳的圖片數',
-        failedToUploadSelectedImage: '所選擇的圖片上傳失敗',
+        failedToUploadSelectedImage: '選擇的圖片中有一項上傳失敗，\n正在嘗試完成剩餘的上傳操作。',
+        failedToReadSelectedImage: '無法讀取所選擇的圖片檔',
+        allUploadActionsAreFailed: '所選擇的圖片上傳失敗',
+        numUploadActionsAreFailed: '張圖片上傳失敗',
 
         // Scene: Histroy (Results)
         copySelectedURLs: '將已勾選的連結複製到剪貼簿',
