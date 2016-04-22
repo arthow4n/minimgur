@@ -1,5 +1,5 @@
 {
-  "name": "Minimgur",
+  "name": "minimgur",
   "version": "1.4.0",
   "scripts": {
     "start": "node node_modules/react-native/local-cli/cli.js start"
