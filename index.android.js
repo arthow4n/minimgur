@@ -65,7 +65,7 @@ const WINDOW_HEIGHT = Dimensions.get('window').height;
 
 const RENDER_RANGE = Dimensions.get('window').height * 6;
 
-const PARALLEL_UPLOAD_SESSIONS_LIMIT = 5;
+const PARALLEL_UPLOAD_SESSIONS_LIMIT = 3;
 
 const mkButtonCommonProps = {
     backgroundColor: MKColor.Silver,
