@@ -392,7 +392,9 @@ class minimgur extends Component {
                                 Toast.show(DIC.selectAtLeastOneImageToUpload, Toast.SHORT);
                                 return true;
                             }
-                            this.uploadMultipleImages(imageURIs);
+                            this.uploadMultipleImages(imageURIs.map((uri) => {
+                                return { uri: uri, fileName: '' };
+                            }));
                         }}/>
                     </View>
                 );
@@ -433,30 +435,38 @@ class minimgur extends Component {
                 if (this.state.options.useMimeTypeIntentSelector) {
                     RNFileIntent.requestFile("image/*", (response) => {
                         if (!response.didCancel) {
-                            this.uploadMultipleImages([response.uri]);
+                            this.uploadMultipleImages([response]);
                         }
                     });
                 } else {
-                    ImagePickerManager.launchImageLibrary({}, (response) => this.onUploaderImagePicked(response));
+                    ImagePickerManager.launchImageLibrary({}, (response) => {
+                        if (!response.didCancel) {
+                            this.uploadMultipleImages([response]);
+                        }
+                    });
                 }
                 break;
             case 'camera':
-                ImagePickerManager.launchCamera({mediaType: 'photo'}, (response) => this.onUploaderImagePicked(response));
+                ImagePickerManager.launchCamera({mediaType: 'photo'}, (response) => {
+                    if (!response.didCancel) {
+                        this.uploadMultipleImages([response]);
+                    }
+                });
                 break;
         }
     }
 
-    uploadMultipleImages(imageURIs) {
-        const total = imageURIs.length;
+    uploadMultipleImages(images) {
+        const total = images.length;
         let current = 0;
-        mapLimit(imageURIs, PARALLEL_UPLOAD_SESSIONS_LIMIT, (uri, resolve) => {
+        mapLimit(images, PARALLEL_UPLOAD_SESSIONS_LIMIT, (image, resolve) => {
             this.refs.navigator.replace({
                 name: 'uploading',
                 current,
                 total,
-                fileName: ( imageURIs.length === 1 ? imageURIs[0].split('/').slice(-1)[0] : false ),
+                fileName: ( images.length === 1 && images[0].fileName ? images[0].fileName : false ),
             });
-            RNFS.readFile(uri.replace('file:/', ''), 'base64')
+            RNFS.readFile(image.uri.replace('file:/', ''), 'base64')
             .then((data) => {
                 this.uploadToImgur({ data })
                 .then((response) => {
@@ -465,7 +475,7 @@ class minimgur extends Component {
                         name: 'uploading',
                         current,
                         total,
-                        fileName: ( imageURIs.length === 1 ? imageURIs[0].split('/').slice(-1)[0] : false ),
+                        fileName: ( images.length === 1 && images[0].fileName ? images[0].fileName : false ),
                     });
                     if (response.success) {
                         const result = {
@@ -487,14 +497,7 @@ class minimgur extends Component {
                 resolve(null, false);
             });
         }, (err, results) => {
-            filteredResults = results.filter((result) => {
-                if (result) {
-                    console.warn(result.link);
-                } else {
-                    console.warn(result);
-                }
-                return result;
-            });
+            filteredResults = results.filter((result) => result);
             if (filteredResults.length === 0) {
                 Toast.show(DIC.allUploadActionsAreFailed, Toast.SHORT);
                 this.refs.navigator.resetTo({name: 'home'});
@@ -518,49 +521,6 @@ class minimgur extends Component {
                 });
             }
         });
-    }
-
-    onUploaderImagePicked(response) {
-        if (response.error) {
-            console.log('ImagePickerManager Error: ', response.error);
-        } else if (!response.didCancel) {
-            if (this.refs.navigator.getCurrentRoutes().slice(-1)[0].name !== 'uploading') {
-                this.refs.navigator.push({
-                    name: 'uploading',
-                    current: 0,
-                    total: 1,
-                    fileName: response.fileName,
-                });
-            }
-            this.uploadToImgur(response)
-            .then((response) => {
-                if (response.success) {
-                    const result = {
-                        deletehash: response.data.deletehash,
-                        id: response.data.id,
-                        link: response.data.link.replace('http://', 'https://'),
-                    };
-                    this.setState(Object.assign({}, this.state, {
-                        results: [result],
-                        history: [result].concat(this.state.history),
-                    }), () => {
-                        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
-                            if (err) {
-                                throw err;
-                            }
-                            this.refs.navigator.push({name: 'results'});
-                            if (this.state.options.autoCopyOnUploadSuccess) {
-                                this.copyResultsToClipboard(this.state.results.map((image) => image.link));
-                            }
-                        });
-                    });
-                } else {
-                    Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
-                    this.refs.navigator.resetTo({name: 'home'});
-                }
-            })
-            .catch((ex) => Toast.show(DIC.failedToReadSelectedImage, Toast.SHORT));
-        }
     }
 
     uploadToImgur(imageObject) {
