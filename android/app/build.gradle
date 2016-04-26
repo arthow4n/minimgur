@@ -85,8 +85,8 @@ android {
         applicationId "com.minimgur.debug"
         minSdkVersion 16
         targetSdkVersion 22
-        versionCode 6
-        versionName "1.4.0"
+        versionCode 7
+        versionName "1.5.0"
         ndk {
             abiFilters "armeabi-v7a", "x86"
         }
@@ -130,4 +130,6 @@ dependencies {
     compile project(':RNMaterialKit')
     compile project(':react-native-file-intent')
     compile project(':ReactNativeLocalization')
+    compile project(':react-native-cordova')
+    compile project(':react-native-file-transfer')
 }

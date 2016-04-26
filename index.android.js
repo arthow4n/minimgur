@@ -46,6 +46,7 @@ import {
 import Share from 'react-native-share';
 import XImage from 'react-native-ximage';
 import RNFS from 'react-native-fs';
+import FileTransfer from '@remobile/react-native-file-transfer';
 
 import Label from './Label.js';
 import CameraRollGallery from './CameraRollGallery.js';
@@ -93,9 +94,8 @@ class minimgur extends Component {
         super(props);
         this.renderScene = this.renderScene.bind(this);
         this.uploadMultipleImages = this.uploadMultipleImages.bind(this);
-        this.uploadToImgur = this.uploadToImgur.bind(this);
         this.copyResultsToClipboard = this.copyResultsToClipboard.bind(this);
-        this.state = { version: '1.3.0' }; // use previous version to trigger notification in renderScene()
+        this.state = { version: '1.4.0' }; // use previous version to trigger notification in renderScene()
     }
 
     componentDidMount() {
@@ -121,7 +121,7 @@ class minimgur extends Component {
     handleIncomingIntent(response) {
         if (Array.isArray(response) && response.length !== 0) {
             this.loadInitialState(() => {
-                this.uploadMultipleImages(response.map((file) => file.uri));
+                this.uploadMultipleImages(response);
             });
         } else {
             this.loadInitialState(() => {
@@ -198,7 +198,7 @@ class minimgur extends Component {
 
     renderScene(route, navigator) {
         // show app version update announcement
-        if (this.state.version !== '1.4.0' && route.name !== 'initializing') {
+        if (this.state.version !== '1.5.0' && route.name !== 'initializing') {
             Alert.alert(
                 DIC.newFeature,
                 DIC.newFeatureDescription,
@@ -207,7 +207,7 @@ class minimgur extends Component {
                         text: DIC.ok,
                         onPress: () => {
                             this.setState(Object.assign({}, this.state, {
-                                version: '1.4.0' //current version
+                                version: '1.5.0' //current version
                             }), () => {
                                 AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
                                     if (err) {
@@ -459,17 +459,18 @@ class minimgur extends Component {
     uploadMultipleImages(images) {
         const total = images.length;
         let current = 0;
+        this.refs.navigator.replace({
+            name: 'uploading',
+            current,
+            total,
+            fileName: ( images.length === 1 && images[0].fileName ? images[0].fileName : false ),
+        });
         mapLimit(images, PARALLEL_UPLOAD_SESSIONS_LIMIT, (image, resolve) => {
-            this.refs.navigator.replace({
-                name: 'uploading',
-                current,
-                total,
-                fileName: ( images.length === 1 && images[0].fileName ? images[0].fileName : false ),
-            });
-            RNFS.readFile(image.uri.replace('file:/', ''), 'base64')
-            .then((data) => {
-                this.uploadToImgur({ data })
-                .then((response) => {
+            const fileTransfer = new FileTransfer();
+            fileTransfer.upload(image.uri, encodeURI('https://api.imgur.com/3/image'),
+                // handle result
+                (result) => {
+                    response = JSON.parse(result.response);
                     current += 1;
                     this.refs.navigator.replace({
                         name: 'uploading',
@@ -490,11 +491,22 @@ class minimgur extends Component {
                         // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
                         resolve(null, false);
                     }
-                });
-            })
-            .catch((ex) => {
-                Toast.show(DIC.failedToReadSelectedImage, Toast.SHORT);
-                resolve(null, false);
+                },
+                // handle error
+                (err) => {
+                    Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
+                    // handle occured error in main callback instead of mapLimit itself,
+                    // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
+                    resolve(null, false);
+                },
+                // options
+                {
+                    fileKey: 'image',
+                    fileName: image.fileName || 'tempFileName',
+                    mimeType: image.type,
+                    headers: {
+                        Authorization: 'Client-ID ' + CLIENT_ID
+                    },
             });
         }, (err, results) => {
             filteredResults = results.filter((result) => result);
@@ -521,28 +533,6 @@ class minimgur extends Component {
                 });
             }
         });
-    }
-
-    uploadToImgur(imageObject) {
-        return new Promise((resolve, reject) => {
-            const formData = new FormData();
-            formData.append('image', imageObject.data);
-            fetch('https://api.imgur.com/3/image',
-                {
-                    method: 'POST',
-                    headers: {
-                        Authorization: 'Client-ID ' + CLIENT_ID
-                    },
-                    body: formData
-                }
-            )
-            .then((response) => response.json())
-            .then((response) => {
-                console.log(response);
-                resolve(response);
-            })
-            .catch((ex) => reject(ex));
-        })
     }
 
     renderHistory(history, isResults) {

@@ -4,7 +4,7 @@ const dictionary = new LocalizedStrings({
     en: {
         // upgrade notes
         newFeature: 'New Feature: ',
-        newFeatureDescription: '- Improved upload speed.\n- Fixed the crash caused by uploading large amount of selected images.',
+        newFeatureDescription: '- Reduced data usage by up to 25%\n- Fixed displaying incorrect file name',
 
         // Scene: Home
         uploadFromCamera: 'Take photo & upload',
@@ -52,7 +52,7 @@ const dictionary = new LocalizedStrings({
     zh: {
         // upgrade notes
         newFeature: '新功能: ',
-        newFeatureDescription: '- 提升了多檔案時的上傳速度\n- 修正因同時上傳大量圖片而造成的閃退問題。',
+        newFeatureDescription: '- 減少最多25%的上傳數據用量\n- 修正上傳檔名顯示錯誤',
 
         // Scene: Home
         uploadFromCamera: '拍照並上傳',

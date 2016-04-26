@@ -1,6 +1,6 @@
 {
   "name": "minimgur",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "scripts": {
     "start": "node node_modules/react-native/local-cli/cli.js start"
   },
@@ -10,6 +10,8 @@
     "email": "hevark@msn.com"
   },
   "dependencies": {
+    "@remobile/react-native-cordova": "^1.0.9",
+    "@remobile/react-native-file-transfer": "^1.0.5",
     "async-es": "^2.0.0-rc.3",
     "react": "^0.14.8",
     "react-native": "^0.22.2",

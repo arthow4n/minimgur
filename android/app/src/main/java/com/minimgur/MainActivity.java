@@ -13,6 +13,8 @@ import com.rnfs.RNFSPackage;
 
 import com.reactnativefileintent.RNFileIntentPackage;
 
+import com.remobile.filetransfer.*;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -49,7 +51,8 @@ public class MainActivity extends ReactActivity {
             new ReactMaterialKitPackage(),
             new RNFSPackage(),
             new RNFileIntentPackage(),
-            new ReactNativeLocalizationPackage()
+            new ReactNativeLocalizationPackage(),
+            new RCTFileTransferPackage()
         );
     }
 }
