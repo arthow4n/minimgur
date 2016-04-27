@@ -56,7 +56,7 @@ import { CLIENT_ID } from './imgur.config.js';
 import IconEI from 'react-native-vector-icons/EvilIcons';
 import IconFA from 'react-native-vector-icons/FontAwesome';
 
-import mapLimit from 'async-es/mapLimit';
+import libAsync from 'async-es';
 
 const loadingGif = require('./Ajax-loader.gif');
 
@@ -95,7 +95,7 @@ class minimgur extends Component {
         this.renderScene = this.renderScene.bind(this);
         this.uploadMultipleImages = this.uploadMultipleImages.bind(this);
         this.copyResultsToClipboard = this.copyResultsToClipboard.bind(this);
-        this.state = { version: '1.4.0' }; // use previous version to trigger notification in renderScene()
+        this.state = { version: '1.5.0' }; // use previous version to trigger notification in renderScene()
     }
 
     componentDidMount() {
@@ -178,7 +178,6 @@ class minimgur extends Component {
                                     icon: 'settings',
                                     onPress: () => {
                                         const currentRouteName = this.refs.navigator.getCurrentRoutes().slice(-1)[0].name;
-                                        console.log(this.refs.navigator.getCurrentRoutes().slice(-1)[0].name);
                                         if ( currentRouteName !== 'uploading' &&
                                             currentRouteName !== 'settings' ) {
                                             this.refs.navigator.push({ name: 'settings' });
@@ -198,7 +197,7 @@ class minimgur extends Component {
 
     renderScene(route, navigator) {
         // show app version update announcement
-        if (this.state.version !== '1.5.0' && route.name !== 'initializing') {
+        if (this.state.version !== '1.6.0' && route.name !== 'initializing') {
             Alert.alert(
                 DIC.newFeature,
                 DIC.newFeatureDescription,
@@ -207,7 +206,7 @@ class minimgur extends Component {
                         text: DIC.ok,
                         onPress: () => {
                             this.setState(Object.assign({}, this.state, {
-                                version: '1.5.0' //current version
+                                version: '1.6.0' //current version
                             }), () => {
                                 AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
                                     if (err) {
@@ -419,7 +418,7 @@ class minimgur extends Component {
             <View style={styles.scene}>
                 <View style={styles.container}>
                     <Text style={{textAlign: 'center', margin: 16, fontSize: 18}}>{(route.fileName !== false ? route.fileName : DIC.uploadingMultipleImages)}</Text>
-                    <ProgressBar styleAttr="Large" />
+                    <ProgressBar style={{margin: 24}} styleAttr="Horizontal" progress={this.state.uploadProgress} indeterminate={false}/>
                     <Text style={{textAlign: 'center', margin: 16}}>{(DIC.uploadedImages + ' ' + `[${route.current}/${route.total}]`)}</Text>
                 </View>
             </View>
@@ -457,81 +456,111 @@ class minimgur extends Component {
     }
 
     uploadMultipleImages(images) {
-        const total = images.length;
-        let current = 0;
-        this.refs.navigator.replace({
-            name: 'uploading',
-            current,
-            total,
-            fileName: ( images.length === 1 && images[0].fileName ? images[0].fileName : false ),
-        });
-        mapLimit(images, PARALLEL_UPLOAD_SESSIONS_LIMIT, (image, resolve) => {
-            const fileTransfer = new FileTransfer();
-            fileTransfer.upload(image.uri, encodeURI('https://api.imgur.com/3/image'),
-                // handle result
-                (result) => {
-                    response = JSON.parse(result.response);
-                    current += 1;
-                    this.refs.navigator.replace({
-                        name: 'uploading',
-                        current,
-                        total,
-                        fileName: ( images.length === 1 && images[0].fileName ? images[0].fileName : false ),
+        this.setState({ uploadProgress: 0 }, () => {
+            libAsync.mapLimit(images, 10, (image, resolve) => {
+                if (typeof image.fileSize !== 'undefined') {
+                    image.fileSize = parseInt(image.fileSize);
+                    resolve(null, image);
+                } else {
+                    RNFileIntent.queryFileStat(image.uri, (response) => {
+                        response.fileSize = parseInt(response.fileSize);
+                        resolve(null, response);
                     });
-                    if (response.success) {
-                        const result = {
-                            deletehash: response.data.deletehash,
-                            id: response.data.id,
-                            link: response.data.link.replace('http://', 'https://'),
-                        };
-                        resolve(null, result);
-                    } else {
-                        Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
-                        // handle occured error in main callback instead of mapLimit itself,
-                        // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
-                        resolve(null, false);
-                    }
-                },
-                // handle error
-                (err) => {
-                    Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
-                    // handle occured error in main callback instead of mapLimit itself,
-                    // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
-                    resolve(null, false);
-                },
-                // options
-                {
-                    fileKey: 'image',
-                    fileName: image.fileName || 'tempFileName',
-                    mimeType: image.type,
-                    headers: {
-                        Authorization: 'Client-ID ' + CLIENT_ID
-                    },
-            });
-        }, (err, results) => {
-            filteredResults = results.filter((result) => result);
-            if (filteredResults.length === 0) {
-                Toast.show(DIC.allUploadActionsAreFailed, Toast.SHORT);
-                this.refs.navigator.resetTo({name: 'home'});
-            } else {
-                this.setState(Object.assign({}, this.state, {
-                    results: filteredResults,
-                    history: filteredResults.concat(this.state.history),
-                }), () => {
-                    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
-                        if (err) {
-                            throw err;
-                        }
-                        this.refs.navigator.push({name: 'results'});
-                        if (this.state.options.autoCopyOnUploadSuccess) {
-                            this.copyResultsToClipboard(results.map((image) => image.link));
-                        }
-                        if (results.length !== filteredResults.length) {
-                            Toast.show( (results.length - filteredResults.length) + ' ' + DIC.numUploadActionsAreFailed, Toast.SHORT);
-                        }
-                    });
+                }
+            }, (err, images) => {
+                images = images.map((image, i) => {
+                    return {
+                        ...image,
+                        order: i,
+                    };
                 });
-            }
+                const totalSize = images.reduce( (prev, curr) => {
+                    return prev + curr.fileSize;
+                }, 0);
+                const progress = new Array(images.length).fill(0);
+                const total = images.length;
+                let current = 0;
+                this.refs.navigator.replace({
+                    name: 'uploading',
+                    current,
+                    total,
+                    fileName: ( images.length === 1 && images[0].fileName ? images[0].fileName : false ),
+                });
+                libAsync.mapLimit(images, PARALLEL_UPLOAD_SESSIONS_LIMIT, (image, resolve) => {
+                    const fileTransfer = new FileTransfer();
+                    fileTransfer.onprogress = (progressEvent) => {
+                        progress[image.order] = progressEvent.loaded;
+                        this.setState({ uploadProgress: progress.reduce((prev, curr) => prev + curr) / totalSize });
+                    };
+                    fileTransfer.upload(image.uri, encodeURI('https://api.imgur.com/3/image'),
+                        // handle result
+                        (result) => {
+                            response = JSON.parse(result.response);
+                            current += 1;
+                            this.refs.navigator.replace({
+                                name: 'uploading',
+                                current,
+                                total,
+                                fileName: ( images.length === 1 && images[0].fileName ? images[0].fileName : false ),
+                            });
+                            if (response.success) {
+                                const result = {
+                                    deletehash: response.data.deletehash,
+                                    id: response.data.id,
+                                    link: response.data.link.replace('http://', 'https://'),
+                                };
+                                resolve(null, result);
+                            } else {
+                                Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
+                                // handle occured error in main callback instead of mapLimit itself,
+                                // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
+                                resolve(null, false);
+                            }
+                        },
+                        // handle error
+                        (err) => {
+                            progress[image.order] = image.fileSize;
+                            this.setState({ uploadProgress: progress.reduce((prev, curr) => prev + curr) / totalSize });
+                            Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
+                            // handle occured error in main callback instead of mapLimit itself,
+                            // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
+                            resolve(null, false);
+                        },
+                        // options
+                        {
+                            fileKey: 'image',
+                            fileName: image.fileName || 'tempFileName',
+                            mimeType: image.type,
+                            headers: {
+                                Authorization: 'Client-ID ' + CLIENT_ID
+                            },
+                    });
+                }, (err, results) => {
+                    filteredResults = results.filter((result) => result);
+                    if (filteredResults.length === 0) {
+                        Toast.show(DIC.allUploadActionsAreFailed, Toast.SHORT);
+                        this.refs.navigator.resetTo({name: 'home'});
+                    } else {
+                        this.setState(Object.assign({}, this.state, {
+                            results: filteredResults,
+                            history: filteredResults.concat(this.state.history),
+                        }), () => {
+                            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
+                                if (err) {
+                                    throw err;
+                                }
+                                this.refs.navigator.push({name: 'results'});
+                                if (this.state.options.autoCopyOnUploadSuccess) {
+                                    this.copyResultsToClipboard(results.map((image) => image.link));
+                                }
+                                if (results.length !== filteredResults.length) {
+                                    Toast.show( (results.length - filteredResults.length) + ' ' + DIC.numUploadActionsAreFailed, Toast.SHORT);
+                                }
+                            });
+                        });
+                    }
+                });
+            });
         });
     }
 
