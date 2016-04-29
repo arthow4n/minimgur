@@ -531,7 +531,7 @@ class minimgur extends Component {
                             // handle error
                             (err) => {
                                 progress[image.order] = image.fileSize;
-                                this.setState({ uploadProgress: progress.reduce((prev, curr) => prev + curr) / totalSize });
+                                this.setState({ uploadProgress: progress.reduce((prev, curr) => prev + curr) });
                                 Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
                                 // handle occured error in main callback instead of mapLimit itself,
                                 // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
