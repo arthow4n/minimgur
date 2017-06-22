@@ -7,6 +7,9 @@ import { CLIENT_ID } from './imgur.config.js'; // Imgur API token
 import libAsync from 'async-es';
 import numeral from 'numeral';
 
+import UploadScene from './components/scenes/Upload';
+import HomeScene from './components/scenes/Home';
+
 import React, {
     Alert,
     AppRegistry,
@@ -68,25 +71,7 @@ const WINDOW_HEIGHT = Dimensions.get('window').height;
 const RENDER_RANGE = Dimensions.get('window').height * 6;
 const PARALLEL_UPLOAD_SESSIONS_LIMIT = 3;
 
-const mkButtonCommonProps = {
-    backgroundColor: MKColor.Silver,
-    rippleColor: 'rgba(128,128,128,0.2)',
-    maskColor: 'rgba(128,128,128,0.15)',
-    flex: 1,
-    borderColor: 'rgba(0,0,0,.1)',
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'stretch',
-    shadowRadius: 2,
-    shadowOffset: {width:0, height:2},
-    shadowOpacity: 0.7,
-    shadowColor: 'black',
-};
 
-const mkButtonCommonPropsPrimary = Object.assign({}, mkButtonCommonProps, {
-    rippleColor: 'rgba(255,255,255,0.2)',
-    maskColor: 'rgba(255,255,255,0.15)',
-})
 
 
 export default class minimgur extends Component {
@@ -238,54 +223,11 @@ export default class minimgur extends Component {
                 )
             case 'home':
                 return (
-                    <View style={styles.scene}>
-                        <View style={[styles.homeButtonContainer, { marginTop: 8 }]}>
-                            <MKButton {...mkButtonCommonProps}  onPress={() => this.getImageFromCamera()}>
-                                <Text style={styles.mkButtonText}>
-                                    <IconEI name="camera" size={64} />
-                                </Text>
-                                <Text pointerEvents="none"
-                                    style={styles.mkButtonText}>
-                                    {DIC.uploadFromCamera}
-                                </Text>
-                            </MKButton>
-                        </View>
-                        <View style={styles.homeButtonContainer}>
-                            <MKButton {...mkButtonCommonProps} onPress={() => this.getImagesFromLibrary()}>
-                                <Text style={styles.mkButtonText}>
-                                    <IconEI name="image" size={64} />
-                                </Text>
-                                <Text pointerEvents="none"
-                                    style={styles.mkButtonText}>
-                                    {DIC.uploadFromNativeSelector}
-                                </Text>
-                            </MKButton>
-                        </View>
-                        <View style={styles.homeButtonContainer}>
-                            <MKButton {...mkButtonCommonPropsPrimary} backgroundColor={MKColor.Indigo} onPress={() => navigator.push({ name: 'cameraRoll' })}>
-                                <Text style={styles.mkButtonTextPrimary} >
-                                    <IconEI name="image" size={64} />
-                                    <IconEI name="plus" size={64} />
-                                </Text>
-                                <Text pointerEvents="none"
-                                    style={styles.mkButtonTextPrimary}>
-                                    {DIC.uploadFromGallery}
-                                </Text>
-                            </MKButton>
-                        </View>
-                        <View style={styles.homeButtonContainer}>
-                            <MKButton {...mkButtonCommonProps} onPress={() => navigator.push({ name: 'history' })}>
-                                <Text style={styles.mkButtonText}>
-                                    <IconEI name="clock" size={64} />
-                                </Text>
-                                <Text pointerEvents="none"
-                                    style={styles.mkButtonText}>
-                                    {DIC.showHistory}
-                                </Text>
-                            </MKButton>
-                        </View>
-                    </View>
-                );
+                    <HomeScene
+
+
+                    />
+                )
             case 'settings':
                 const optionCheckBoxItems = [
                     {
@@ -396,7 +338,15 @@ export default class minimgur extends Component {
                     </View>
                 );
             case 'uploading':
-                return this.renderUpload(route);
+                return (
+                    <UploadScene
+                        filename={route.fileName}
+                        uploadProgress={this.state.uploadProgress}
+                        uploadProgressTotal={this.state.uploadProgressTotal}
+                        uploadFilesCount={this.route.uploadFilesCount}
+                        uploadFilesTotal={this.route.uploadFilesTotal}
+                    />
+                );
             case 'results':
                 return this.renderHistory(this.state.results, true);
             case 'history':
@@ -410,19 +360,6 @@ export default class minimgur extends Component {
                 );
         }
     };
-
-    renderUpload(route) {
-        return (
-            <View style={styles.scene}>
-                <View style={styles.container}>
-                    <Text style={{textAlign: 'center', margin: 16, fontSize: 18}}>{(route.fileName !== false ? route.fileName : DIC.uploadingMultipleImages)}</Text>
-                    <Text style={{textAlign: 'center', margin: 16}}>{`${numeral(this.state.uploadProgress).format('0.00 b')} / ${numeral(this.state.uploadProgressTotal).format('0.00 b')}`}</Text>
-                    <ProgressBar style={{margin: 24}} styleAttr="Horizontal" progress={this.state.uploadProgress / this.state.uploadProgressTotal} indeterminate={false}/>
-                    <Text style={{textAlign: 'center', margin: 16}}>{(DIC.uploadedImages + ' ' + `[${route.current}/${route.total}]`)}</Text>
-                </View>
-            </View>
-        );
-    }
 
     getImagesFromLibrary() {
         this.setState({
@@ -488,8 +425,8 @@ export default class minimgur extends Component {
                     let current = 0;
                     this.refs.navigator.replace({
                         name: 'uploading',
-                        current,
-                        total,
+                        uploadFilesCount: current,
+                        uploadFilesTotal: total,
                         fileName: false,
                     });
                     libAsync.mapLimit(images, PARALLEL_UPLOAD_SESSIONS_LIMIT, (image, resolve) => {
@@ -506,10 +443,10 @@ export default class minimgur extends Component {
                                 response = JSON.parse(result.response);
                                 current += 1;
                                 this.refs.navigator.replace({
-                                name: 'uploading',
-                                current,
-                                total,
-                                fileName: false,
+                                    name: 'uploading',
+                                    uploadFilesCount: current,
+                                    uploadFilesTotal: total,
+                                    fileName: false,
                                 });
                                 if (response.success) {
                                 const result = {
@@ -719,56 +656,3 @@ export default class minimgur extends Component {
         Toast.show(DIC.copiedSelectedURLsToClipboard, Toast.SHORT);
     }
 }
-
-const styles = StyleSheet.create({
-    scene: {
-        flex: 1,
-        marginTop: 56,
-    },
-    homeButtonContainer: {
-        backgroundColor: '#ffffff',
-        borderRadius: 2,
-        marginLeft: 8,
-        marginRight: 8,
-        marginBottom: 8,
-        flex: 1,
-    },
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'stretch',
-        backgroundColor: '#F5FCFF'
-    },
-    row: {
-        flex: 1,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'stretch',
-    },
-    col: {
-        flex: 1,
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'stretch',
-    },
-    rowButton: {
-        flex: 0,
-        height: 56,
-    },
-    rowHistory: {
-        flex: 0,
-        height: 90,
-    },
-    mkButtonText: {
-        color: MKColor.Teal,
-        fontSize: 24,
-        fontWeight: 'bold',
-        textAlign: 'center'
-    },
-    mkButtonTextPrimary: {
-        color: 'white',
-        fontSize: 24,
-        fontWeight: 'bold',
-        textAlign: 'center'
-    },
-});
