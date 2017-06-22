@@ -6,6 +6,7 @@ import { CLIENT_ID } from './imgur.config.js'; // Imgur API token
 
 import libAsync from 'async-es';
 import numeral from 'numeral';
+import debounce from './helpers/debounce';
 
 import UploadScene from './components/scenes/Upload';
 import HomeScene from './components/scenes/Home';
@@ -224,8 +225,11 @@ export default class minimgur extends Component {
             case 'home':
                 return (
                     <HomeScene
-
-
+                        pushNavigator={deboune(() => {
+                            navigator.push(route);
+                        })}
+                        getImageFromCamera={this.getImageFromCamera}
+                        getImagesFromLibrary={this.getImagesFromLibrary}
                     />
                 )
             case 'settings':
@@ -361,7 +365,7 @@ export default class minimgur extends Component {
         }
     };
 
-    getImagesFromLibrary() {
+    getImagesFromLibrary = () => {
         this.setState({
             results: [],
         }, () => {
@@ -381,7 +385,7 @@ export default class minimgur extends Component {
         });
     }
 
-    getImageFromCamera() {
+    getImageFromCamera = () => {
         this.setState({
             results: [],
         }, () => {
