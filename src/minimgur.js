@@ -8,8 +8,9 @@ import libAsync from 'async-es';
 import numeral from 'numeral';
 import debounce from './helpers/debounce';
 
-import UploadScene from './components/scenes/Upload';
 import HomeScene from './components/scenes/Home';
+import UploadScene from './components/scenes/Upload';
+import SettingsScene from './components/scenes/Settings';
 
 import React, {
     Alert,
@@ -161,6 +162,27 @@ export default class minimgur extends Component {
         });
     }
 
+    setOptions = (newOptions, callback) => {
+        this.setState({
+            options: Object.assign(
+                {},
+                this.state.options,
+                newOptions
+            ),
+        }, () => {
+            this.saveState(callback);
+        });
+    }
+
+    setUILanguage = (language) => {
+        if (language === 'default') {
+            DIC.setLanguage(DIC.getInterfaceLanguage());
+        } else {
+            DIC.setLanguage(language);
+        }
+        this.forceUpdate();
+    }
+
     render() {
         return (
             <Navigator
@@ -233,99 +255,24 @@ export default class minimgur extends Component {
                     />
                 )
             case 'settings':
-                const optionCheckBoxItems = [
-                    {
-                        value: 'autoCopyOnUploadSuccess', label: DIC.automaticallyCopyResultURLs
-                    },
-                    {
-                        value: 'useMimeTypeIntentSelector', label: DIC.useMIMETypeSelector
-                    },
-                ];
                 return (
-                    <ScrollView style={[styles.scene]}>
-                        <View>
-                            <Subheader text={DIC.options} />
-                            <CheckboxGroup
-                                primary="paperTeal"
-                                checked={Object.keys(this.state.options).filter((k) => this.state.options[k])}
-                                onSelect={(selected) => {
-                                    const newOptions = this.state.options;
-                                    optionCheckBoxItems.forEach( (item) => {
-                                        const key = item.value;
-                                        newOptions[key] = selected.indexOf(key) !== -1;
-                                    });
-                                    this.setState(Object.assign({}, this.state, {
-                                        options: newOptions,
-                                    }), this.saveState);
-                                }}
-                                items={optionCheckBoxItems}
-                            />
-                        </View>
-                        <View>
-                            <Subheader text={DIC.displayLanguage} />
-                            <RadioButtonGroup
-                                primary="paperTeal"
-                                selected={this.state.options.displayLanguage || 'default'}
-                                items={[{
-                                    value: 'default', label: DIC.systemLocale
-                                }, {
-                                    value: 'en', label: 'English'
-                                }, {
-                                    value: 'zh', label: '繁體中文'
-                                }]}
-                                onSelect={(selected) => {
-                                    const originalLanguage = this.state.options.displayLanguage;
-                                    const newOptions = this.state.options;
-                                    newOptions.displayLanguage = selected;
-                                    this.setState(Object.assign({}, this.state, {
-                                        options: newOptions,
-                                    }), () => {
-                                        this.saveState(() => {
-                                            if (selected !== originalLanguage) {
-                                                if (selected === 'default') {
-                                                    DIC.setLanguage(DIC.getInterfaceLanguage());
-                                                    this.setState(this.state);
-                                                } else {
-                                                    DIC.setLanguage(selected);
-                                                    this.setState(this.state);
-                                                }
-                                            }
-                                        });
-                                    });
-                                }}
-                            />
-                        </View>
-                        <View>
-                            <Subheader text={DIC.operations} />
-                            <Label label={DIC.clearLocalUploadHistory} onPress={() => {
-                                Alert.alert(
-                                    DIC.clearLocalUploadHistoryPrompt,
-                                    DIC.clearLocalUploadHistoryDescription,
-                                    [
-                                        {text: 'Cancel', onPress: () => true, style: 'cancel'},
-                                        {text: 'OK', onPress: () => {
-                                            navigator.push({ name: 'initializing'});
-                                            this.setState(Object.assign({}, this.state, {
-                                                results: [],
-                                                history: [],
-                                            }), () => {
-                                                this.saveState(() => {
-                                                    Toast.show(DIC.clearedLocalHistory, Toast.SHORT);
-                                                    navigator.pop();
-                                                });
-                                            });
-                                        }},
-                                    ]
-                                )
-                            }} eiIcon="trash"/>
-                        </View>
-                        <View>
-                            <Subheader text={DIC.about} />
-                            <Label label={ DIC.githubRepository + ": arthow4n/minimgur"} onPress={() => {
-                                Linking.openURL('https://github.com/arthow4n/minimgur').done();
-                            }} eiIcon="sc-github"/>
-                        </View>
-                    </ScrollView>
+                    <SettingsScene
+                        options={this.state.options}
+                        setOptions={this.setOptions}
+                        setUILanguage={this.setUILanguage}
+                        clearHistory={() => {
+                            navigator.push({ name: 'initializing'});
+                            this.setState({
+                                results: [],
+                                history: [],
+                            }), () => {
+                                this.saveState(() => {
+                                    Toast.show(DIC.clearedLocalHistory, Toast.SHORT);
+                                    navigator.pop();
+                                });
+                            });
+                        }}
+                    />
                 )
             case 'cameraRoll':
                 return (
