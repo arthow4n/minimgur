@@ -1,3 +1,12 @@
+const APP_VERSION = '1.6.0';
+const APP_VERSION_PREVIOUS = '1.5.0';
+
+const IMGUR_API_URL = 'https://api.imgur.com/3/image';
+import { CLIENT_ID } from './imgur.config.js'; // Imgur API token
+
+import libAsync from 'async-es';
+import numeral from 'numeral';
+
 import React, {
     Alert,
     AppRegistry,
@@ -21,7 +30,6 @@ import React, {
     View
 } from 'react-native';
 
-
 import {
     MKButton,
     MKCheckbox,
@@ -39,35 +47,25 @@ import {
 
 import DIC from './dictionary.config.js';
 
-import {
-    ImagePickerManager,
-    RNFileIntent,
- } from 'NativeModules';
 import Share from 'react-native-share';
 import XImage from 'react-native-ximage';
 import RNFS from 'react-native-fs';
 import FileTransfer from '@remobile/react-native-file-transfer';
+import {
+    ImagePickerManager,
+    RNFileIntent,
+ } from 'NativeModules';
 
 import Label from './Label.js';
 import CameraRollGallery from './CameraRollGallery.js';
 
-import { CLIENT_ID } from './imgur.config.js';
-
 import IconEI from 'react-native-vector-icons/EvilIcons';
 import IconFA from 'react-native-vector-icons/FontAwesome';
 
-import libAsync from 'async-es';
-
-import numeral from 'numeral';
-
 const loadingGif = require('./Ajax-loader.gif');
-
 const STORAGE_KEY = '@Minimgur:state';
-
 const WINDOW_HEIGHT = Dimensions.get('window').height;
-
 const RENDER_RANGE = Dimensions.get('window').height * 6;
-
 const PARALLEL_UPLOAD_SESSIONS_LIMIT = 3;
 
 const mkButtonCommonProps = {
@@ -90,18 +88,18 @@ const mkButtonCommonPropsPrimary = Object.assign({}, mkButtonCommonProps, {
     maskColor: 'rgba(255,255,255,0.15)',
 })
 
-class minimgur extends Component {
 
+class minimgur extends Component {
     constructor(props) {
         super(props);
-        this.renderScene = this.renderScene.bind(this);
-        this.uploadMultipleImages = this.uploadMultipleImages.bind(this);
-        this.copyResultsToClipboard = this.copyResultsToClipboard.bind(this);
-        this.state = { version: '1.5.0' }; // use previous version to trigger notification in renderScene()
+        // use previous version to trigger notification in renderScene()
+        this.state = {
+          version: APP_VERSION_PREVIOUS,
+        };
     }
 
     componentDidMount() {
-        BackAndroid.addEventListener('hardwareBackPress', function() {
+        BackAndroid.addEventListener('hardwareBackPress', () => {
             const currentRouteName = this.refs.navigator.getCurrentRoutes().slice(-1)[0].name;
             switch (currentRouteName) {
                 case 'home':
@@ -116,7 +114,7 @@ class minimgur extends Component {
                     this.refs.navigator.pop();
             }
             return true;
-        }.bind(this));
+        });
         RNFileIntent.getReceivedFile((response) => this.handleIncomingIntent(response));
     }
 
@@ -138,7 +136,7 @@ class minimgur extends Component {
                 throw err;
             }
             if (state !== null) {
-                this.setState(Object.assign({}, this.state, JSON.parse(state)), () => {
+                this.setState(JSON.parse(state)), () => {
                     if (this.state.options.displayLanguage && this.state.options.displayLanguage !== 'default') {
                         DIC.setLanguage(this.state.options.displayLanguage);
                     }
@@ -146,7 +144,7 @@ class minimgur extends Component {
                 });
             } else {
                 // the state on clean start
-                this.setState(Object.assign({}, this.state, {
+                this.setState({
                     options: {
                         autoCopyOnUploadSuccess: true,
                         useMimeTypeIntentSelector: false,
@@ -197,9 +195,9 @@ class minimgur extends Component {
         );
     }
 
-    renderScene(route, navigator) {
+    renderScene = (route, navigator) => {
         // show app version update announcement
-        if (this.state.version !== '1.6.0' && route.name !== 'initializing') {
+        if (this.state.version !== APP_VERSION && route.name !== 'initializing') {
             Alert.alert(
                 DIC.newFeature,
                 DIC.newFeatureDescription,
@@ -208,7 +206,7 @@ class minimgur extends Component {
                         text: DIC.ok,
                         onPress: () => {
                             this.setState(Object.assign({}, this.state, {
-                                version: '1.6.0' //current version
+                                version: APP_VERSION_PREVIOUS //current version
                             }), () => {
                                 AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
                                     if (err) {
@@ -232,7 +230,7 @@ class minimgur extends Component {
                 return (
                     <View style={styles.scene}>
                         <View style={[styles.homeButtonContainer, { marginTop: 8 }]}>
-                            <MKButton {...mkButtonCommonProps}  onPress={() => this.showUploader('camera')}>
+                            <MKButton {...mkButtonCommonProps}  onPress={() => this.getImageFromCamera()}>
                                 <Text style={styles.mkButtonText}>
                                     <IconEI name="camera" size={64} />
                                 </Text>
@@ -243,7 +241,7 @@ class minimgur extends Component {
                             </MKButton>
                         </View>
                         <View style={styles.homeButtonContainer}>
-                            <MKButton {...mkButtonCommonProps} onPress={() => this.showUploader('library')}>
+                            <MKButton {...mkButtonCommonProps} onPress={() => this.getImagesFromLibrary()}>
                                 <Text style={styles.mkButtonText}>
                                     <IconEI name="image" size={64} />
                                 </Text>
@@ -413,7 +411,7 @@ class minimgur extends Component {
                     </View>
                 );
         }
-    }
+    };
 
     renderUpload(route) {
         return (
@@ -428,37 +426,39 @@ class minimgur extends Component {
         );
     }
 
-    showUploader(source) {
-        this.setState(Object.assign({}, this.state, {
+    getImagesFromLibrary() {
+        this.setState({
             results: [],
-        }));
-        switch (source) {
-            case 'library':
-                if (this.state.options.useMimeTypeIntentSelector) {
-                    RNFileIntent.requestFile("image/*", (response) => {
-                        if (!response.didCancel) {
-                            this.uploadMultipleImages([response]);
-                        }
-                    });
-                } else {
-                    ImagePickerManager.launchImageLibrary({}, (response) => {
-                        if (!response.didCancel) {
-                            this.uploadMultipleImages([response]);
-                        }
-                    });
-                }
-                break;
-            case 'camera':
-                ImagePickerManager.launchCamera({mediaType: 'photo'}, (response) => {
+        }, () => {
+            if (this.state.options.useMimeTypeIntentSelector) {
+                RNFileIntent.requestFile("image/*", (response) => {
                     if (!response.didCancel) {
                         this.uploadMultipleImages([response]);
                     }
                 });
-                break;
-        }
+            } else {
+                ImagePickerManager.launchImageLibrary({}, (response) => {
+                    if (!response.didCancel) {
+                      this.uploadMultipleImages([response]);
+                    }
+                });
+            }
+        });
     }
 
-    uploadMultipleImages(images) {
+    getImageFromCamera() {
+        this.setState({
+            results: [],
+        }, () => {
+            ImagePickerManager.launchCamera({mediaType: 'photo'}, (response) => {
+                if (!response.didCancel) {
+                    this.uploadMultipleImages([response]);
+                }
+            });
+        });
+    }
+
+    uploadMultipleImages = (images) => {
         this.setState({
             uploadProgress: 0,
             uploadProgressTotal: 0,
@@ -503,41 +503,42 @@ class minimgur extends Component {
                                 uploadProgress: (newProgress < this.state.uploadProgressTotal ? newProgress : this.state.uploadProgressTotal),
                             });
                         };
-                        fileTransfer.upload(image.uri, encodeURI('https://api.imgur.com/3/image'),
-                            // handle result
+                        fileTransfer.upload(image.uri, IMGUR_API_URL,
                             (result) => {
                                 response = JSON.parse(result.response);
                                 current += 1;
                                 this.refs.navigator.replace({
-                                    name: 'uploading',
-                                    current,
-                                    total,
-                                    fileName: false,
+                                name: 'uploading',
+                                current,
+                                total,
+                                fileName: false,
                                 });
                                 if (response.success) {
-                                    const result = {
-                                        deletehash: response.data.deletehash,
-                                        id: response.data.id,
-                                        link: response.data.link.replace('http://', 'https://'),
-                                    };
-                                    resolve(null, result);
+                                const result = {
+                                deletehash: response.data.deletehash,
+                                id: response.data.id,
+                                link: response.data.link.replace('http://', 'https://'),
+                                };
+                                resolve(null, result);
                                 } else {
-                                    Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
-                                    // handle occured error in main callback instead of mapLimit itself,
-                                    // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
-                                    resolve(null, false);
+                                Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
+                                // handle occured error in main callback instead of mapLimit itself,
+                                // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
+                                resolve(null, false);
                                 }
                             },
-                            // handle error
+                            // fileTransfer() error handle
                             (err) => {
                                 progress[image.order] = image.fileSize;
-                                this.setState({ uploadProgress: progress.reduce((prev, curr) => prev + curr) });
+                                this.setState({
+                                    uploadProgress: progress.reduce((prev, curr) => prev + curr)
+                                });
                                 Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
                                 // handle occured error in main callback instead of mapLimit itself,
                                 // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
                                 resolve(null, false);
                             },
-                            // options
+                            // fileTransfer() options
                             {
                                 fileKey: 'image',
                                 fileName: image.fileName || 'tempFileName',
@@ -545,14 +546,16 @@ class minimgur extends Component {
                                 headers: {
                                     Authorization: 'Client-ID ' + CLIENT_ID
                                 },
-                        });
+                            }
+                        );
                     }, (err, results) => {
-                        filteredResults = results.filter((result) => result);
+                        // filter failed requests
+                        const filteredResults = results.filter((result) => result);
                         if (filteredResults.length === 0) {
                             Toast.show(DIC.allUploadActionsAreFailed, Toast.SHORT);
                             this.refs.navigator.resetTo({name: 'home'});
                         } else {
-                            this.setState(Object.assign({}, this.state, {
+                            this.setState({
                                 results: filteredResults,
                                 history: filteredResults.concat(this.state.history),
                             }), () => {
@@ -577,8 +580,9 @@ class minimgur extends Component {
     }
 
     renderHistory(history, isResults) {
-        let ds = new ListView.DataSource({rowHasChanged: (r1, r2) => r1 !== r2 });
-        ds = ds.cloneWithRows(history);
+        const ds =
+          new ListView.DataSource({rowHasChanged: (r1, r2) => r1 !== r2 })
+          .cloneWithRows(history);
         let selectedURLs = [];
         if (isResults) {
             history.forEach((image) => {
@@ -647,7 +651,7 @@ class minimgur extends Component {
                                                                             {text: DIC.cancel, onPress: () => true, style: 'cancel'},
                                                                             {text: DIC.ok, onPress: () => {
                                                                                 Toast.show(DIC.deletingRemoteImage + image.link, Toast.SHORT);
-                                                                                fetch('https://api.imgur.com/3/image/' + image.deletehash, {
+                                                                                fetch(`${IMGUR_API_URL}/${image.deletehash}`, {
                                                                                     method: 'DELETE',
                                                                                     headers: {
                                                                                         Authorization: 'Client-ID ' + CLIENT_ID
