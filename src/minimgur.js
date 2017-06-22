@@ -131,7 +131,7 @@ export default class minimgur extends Component {
     }
 
     loadInitialState(callback) {
-        AsyncStorage.getItem(STORAGE_KEY, (err, state) => {
+        this.loadState((state) => {
             if (err) {
                 throw err;
             }
@@ -154,6 +154,24 @@ export default class minimgur extends Component {
                     history: [],
                 }), callback);
             }
+        });
+    }
+
+    loadState(callback) {
+        AsyncStorage.getItem(STORAGE_KEY, (err, state) => {
+            if (err) {
+                throw err;
+            }
+            if (callback) callback(state);
+        });
+    }
+
+    saveState(callback) {
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
+            if (err) {
+                throw err;
+            }
+            if (callback) callback();
         });
     }
 
@@ -201,22 +219,14 @@ export default class minimgur extends Component {
             Alert.alert(
                 DIC.newFeature,
                 DIC.newFeatureDescription,
-                [
-                    {
-                        text: DIC.ok,
-                        onPress: () => {
-                            this.setState(Object.assign({}, this.state, {
-                                version: APP_VERSION_PREVIOUS //current version
-                            }), () => {
-                                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
-                                    if (err) {
-                                        throw err;
-                                    }
-                                });
-                            });
-                        }
+                [{
+                    text: DIC.ok,
+                    onPress: () => {
+                        this.setState({
+                            version: APP_VERSION_PREVIOUS //current version
+                        }), this.saveState);
                     }
-                ]
+                }]
             );
         }
         switch (route.name) {
@@ -300,13 +310,7 @@ export default class minimgur extends Component {
                                     });
                                     this.setState(Object.assign({}, this.state, {
                                         options: newOptions,
-                                    }), () => {
-                                        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
-                                            if (err) {
-                                                throw errr;
-                                            }
-                                        });
-                                    });
+                                    }), this.saveState);
                                 }}
                                 items={optionCheckBoxItems}
                             />
@@ -330,10 +334,7 @@ export default class minimgur extends Component {
                                     this.setState(Object.assign({}, this.state, {
                                         options: newOptions,
                                     }), () => {
-                                        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
-                                            if (err) {
-                                                throw errr;
-                                            }
+                                        this.saveState(() => {
                                             if (selected !== originalLanguage) {
                                                 if (selected === 'default') {
                                                     DIC.setLanguage(DIC.getInterfaceLanguage());
@@ -362,10 +363,7 @@ export default class minimgur extends Component {
                                                 results: [],
                                                 history: [],
                                             }), () => {
-                                                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
-                                                    if (err) {
-                                                        throw err;
-                                                    }
+                                                this.saveState(() => {
                                                     Toast.show(DIC.clearedLocalHistory, Toast.SHORT);
                                                     navigator.pop();
                                                 });
@@ -559,10 +557,7 @@ export default class minimgur extends Component {
                                 results: filteredResults,
                                 history: filteredResults.concat(this.state.history),
                             }), () => {
-                                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
-                                    if (err) {
-                                        throw err;
-                                    }
+                                this.saveState(() => {
                                     this.refs.navigator.push({name: 'results'});
                                     if (this.state.options.autoCopyOnUploadSuccess) {
                                         this.copyResultsToClipboard(results.map((image) => image.link));
@@ -664,13 +659,7 @@ export default class minimgur extends Component {
                                                                                             history: this.state.history.filter((historyImage) => {
                                                                                                 return historyImage.deletehash !== image.deletehash;
                                                                                             })
-                                                                                        }), () => {
-                                                                                            AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.state), (err) => {
-                                                                                                if (err) {
-                                                                                                    throw err;
-                                                                                                }
-                                                                                            });
-                                                                                        });
+                                                                                        }), this.saveState);
                                                                                     }
                                                                                 })
                                                                                 .catch((ex) => console.error(ex));
