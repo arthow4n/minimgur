@@ -8,6 +8,7 @@ import libAsync from 'async-es';
 import numeral from 'numeral';
 import debounce from './helpers/debounce';
 
+import CameraRollScene from './components/scenes/CameraRollScene';
 import HomeScene from './components/scenes/Home';
 import InitializingScene from './components/scenes/Initializing';
 import UploadScene from './components/scenes/Upload';
@@ -62,9 +63,6 @@ import {
     RNFileIntent,
  } from 'NativeModules';
 
-import Label from './Label.js';
-import CameraRollGallery from './CameraRollGallery.js';
-
 import IconEI from 'react-native-vector-icons/EvilIcons';
 import IconFA from 'react-native-vector-icons/FontAwesome';
 
@@ -73,9 +71,6 @@ const STORAGE_KEY = '@Minimgur:state';
 const WINDOW_HEIGHT = Dimensions.get('window').height;
 const RENDER_RANGE = Dimensions.get('window').height * 6;
 const PARALLEL_UPLOAD_SESSIONS_LIMIT = 3;
-
-
-
 
 export default class minimgur extends Component {
     constructor(props) {
@@ -275,17 +270,22 @@ export default class minimgur extends Component {
                 );
             case 'cameraRoll':
                 return (
-                    <View style={styles.scene}>
-                        <CameraRollGallery onUpload={(imageURIs) =>{
+                    <CameraRollScene
+                        onUpload={(imageURIs) =>{
                             if (imageURIs.length === 0) {
                                 Toast.show(DIC.selectAtLeastOneImageToUpload, Toast.SHORT);
-                                return true;
+                                return;
                             }
-                            this.uploadMultipleImages(imageURIs.map((uri) => {
-                                return { uri: uri, fileName: '' };
-                            }));
-                        }}/>
-                    </View>
+                            this.uploadMultipleImages(
+                                imageURIs.map((uri) => (
+                                    {
+                                        uri,
+                                        fileName: '',
+                                    }
+                                ))
+                            );
+                        }}
+                    />
                 );
             case 'uploading':
                 return (
