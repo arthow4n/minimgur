@@ -9,6 +9,7 @@ import numeral from 'numeral';
 import debounce from './helpers/debounce';
 
 import HomeScene from './components/scenes/Home';
+import InitializingScene from './components/scenes/Initializing';
 import UploadScene from './components/scenes/Upload';
 import SettingsScene from './components/scenes/Settings';
 
@@ -240,10 +241,8 @@ export default class minimgur extends Component {
         switch (route.name) {
             case 'initializing':
                 return (
-                    <View style={styles.container}>
-                        <ProgressBar styleAttr="Large" />
-                    </View>
-                )
+                    <InitializingScene />
+                );
             case 'home':
                 return (
                     <HomeScene
@@ -253,7 +252,7 @@ export default class minimgur extends Component {
                         getImageFromCamera={this.getImageFromCamera}
                         getImagesFromLibrary={this.getImagesFromLibrary}
                     />
-                )
+                );
             case 'settings':
                 return (
                     <SettingsScene
@@ -273,7 +272,7 @@ export default class minimgur extends Component {
                             });
                         }}
                     />
-                )
+                );
             case 'cameraRoll':
                 return (
                     <View style={styles.scene}>
