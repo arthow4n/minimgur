@@ -12,6 +12,7 @@ import CameraRollScene from './components/scenes/CameraRollScene';
 import HomeScene from './components/scenes/Home';
 import InitializingScene from './components/scenes/Initializing';
 import UploadScene from './components/scenes/Upload';
+import HistoryScene from './components/scenes/History';
 import SettingsScene from './components/scenes/Settings';
 
 import React, {
@@ -55,7 +56,7 @@ import {
 import DIC from './dictionary.config.js';
 
 import Share from 'react-native-share';
-import XImage from 'react-native-ximage';
+
 import RNFS from 'react-native-fs';
 import FileTransfer from '@remobile/react-native-file-transfer';
 import {
@@ -298,9 +299,19 @@ export default class minimgur extends Component {
                     />
                 );
             case 'results':
-                return this.renderHistory(this.state.results, true);
+                return (
+                    <HistoryScene
+                        history={this.state.results}
+                        asResultsScene={true}
+                    />
+                );
             case 'history':
-                return this.renderHistory(this.state.history);
+                return (
+                    <HistoryScene
+                        history={this.state.history}
+                        deleteImage={this.deleteImage}
+                    />
+                );
             case 'showImage':
                 const { width, height } = Dimensions.get('window');
                 return (
@@ -461,148 +472,25 @@ export default class minimgur extends Component {
         });
     }
 
-    renderHistory(history, isResults) {
-        const ds =
-          new ListView.DataSource({rowHasChanged: (r1, r2) => r1 !== r2 })
-          .cloneWithRows(history);
-        let selectedURLs = [];
-        if (isResults) {
-            history.forEach((image) => {
-                selectedURLs.push(image.link)
-            });
-        }
-        return (
-            <View style={styles.scene}>
-                <View style={styles.row}>
-                    <ListView dataSource={ds}
-                        initialListSize={12}
-                        pageSize={24}
-                        scrollRenderAheadDistance={RENDER_RANGE}
-                        renderSeparator={(sectionId, rowId) => {
-                            return (
-                                <View style={{ height: 1, backgroundColor: '#EAEAEA' }} key={`${sectionId}-${rowId}`}></View>
-                            )
-                        }}
-                        renderRow={(image) => {
-                            return (
-                                <View style={styles.rowHistory} key={image.deletehash}>
-                                    <View style={styles.row}>
-                                        <TouchableOpacity onPress={() => {
-                                            Linking.openURL(image.link).done();
-                                        }}>
-                                            <View style={{ height: 96, width: 96 }}>
-                                                <XImage defaultSource={loadingGif} url={image.link.replace(image.id, `${image.id}b`)} style={{ height: 96, width: 96 }} />
-                                            </View>
-                                        </TouchableOpacity>
-                                        <View style={styles.col}>
-                                            <View style={styles.col}>
-                                                <Text style={{ textAlign: 'center' }}>{image.link}</Text>
-                                            </View>
-                                            <View style={styles.row}>
-                                                <MKButton {...mkButtonCommonProps}
-                                                    onPress={() => {
-                                                        this.copyResultsToClipboard([image.link]);
-                                                    }}>
-                                                    <Text pointerEvents="none"
-                                                        style={[styles.mkButtonText]}>
-                                                        <IconFA name="clipboard" size={24} />
-                                                    </Text>
-                                                </MKButton>
-                                                <MKButton {...mkButtonCommonProps} onPress={() => {
-                                                        Share.open({
-                                                            share_URL: image.link,
-                                                        }, (e) => console.log(e));
-                                                }}>
-                                                    <Text pointerEvents="none"
-                                                        style={[styles.mkButtonText]}>
-                                                        <IconFA name="share-alt" size={24} />
-                                                    </Text>
-                                                </MKButton>
-                                                {(() => {
-                                                    if (isResults) {
-                                                        return (
-                                                            <View style={{flex: 1}} />
-                                                        )
-                                                    } else {
-                                                        return (
-                                                            <MKButton {...mkButtonCommonProps} onPress={() => {
-                                                                    Alert.alert(
-                                                                        DIC.deleteRemoteImage,
-                                                                        DIC.deleteRemoteImageDescription + '\n' + image.link,
-                                                                        [
-                                                                            {text: DIC.cancel, onPress: () => true, style: 'cancel'},
-                                                                            {text: DIC.ok, onPress: () => {
-                                                                                Toast.show(DIC.deletingRemoteImage + image.link, Toast.SHORT);
-                                                                                fetch(`${IMGUR_API_URL}/${image.deletehash}`, {
-                                                                                    method: 'DELETE',
-                                                                                    headers: {
-                                                                                        Authorization: 'Client-ID ' + CLIENT_ID
-                                                                                    },
-                                                                                })
-                                                                                .then((response) => response.json())
-                                                                                .then((response) => {
-                                                                                    if (response.success) {
-                                                                                        this.setState(Object.assign({}, this.state, {
-                                                                                            history: this.state.history.filter((historyImage) => {
-                                                                                                return historyImage.deletehash !== image.deletehash;
-                                                                                            })
-                                                                                        }), this.saveState);
-                                                                                    }
-                                                                                })
-                                                                                .catch((ex) => console.error(ex));
-                                                                            }},
-                                                                        ]
-                                                                    )}}>
-                                                                    <Text pointerEvents="none"
-                                                                        style={[styles.mkButtonText, { color: MKColor.Red }]}>
-                                                                        <IconFA name="trash-o" size={24} />
-                                                                    </Text>
-                                                                </MKButton>
-                                                        )
-                                                    }
-                                                })()}
-                                                <View style={styles.row}>
-                                                    <MKCheckbox style={{width: 24, height: 24, margin: 12}} checked={isResults} onCheckedChange={(v) => {
-                                                            if (v.checked) {
-                                                                selectedURLs.push(image.link);
-                                                            } else {
-                                                                selectedURLs = selectedURLs.filter((url) => url !== image.link);
-                                                            }
-                                                    }}/>
-                                                </View>
-                                            </View>
-                                        </View>
-                                    </View>
-                                </View>
-                            )
-                    }} />
-                </View>
-                <View style={[styles.row, styles.rowButton]}>
-                    <MKButton {...mkButtonCommonPropsPrimary} backgroundColor={MKColor.Indigo} onPress={() => {
-                            this.copyResultsToClipboard(selectedURLs);
-                        }}>
-                        <Text pointerEvents="none"
-                            style={[styles.mkButtonTextPrimary, { fontSize: 16 }]}>
-                            <IconFA name="clipboard" size={24} /> {DIC.copySelectedURLs}
-                        </Text>
-                    </MKButton>
-                    <MKButton {...mkButtonCommonPropsPrimary} flex={0} width={56} backgroundColor={MKColor.Teal} onPress={() => {
-                            Share.open({
-                                share_text: selectedURLs.join('\n'),
-                            }, (e) => console.log(e));
-                        }}>
-                        <Text pointerEvents="none"
-                            style={[styles.mkButtonTextPrimary, { fontSize: 16 }]}>
-                            <IconFA name="share-alt" size={24} />
-                        </Text>
-                    </MKButton>
-                </View>
-            </View>
-        )
-    }
-
-    copyResultsToClipboard(arrayOfURLs) {
-        Clipboard.setString(arrayOfURLs.join('\n'));
-        Toast.show(DIC.copiedSelectedURLsToClipboard, Toast.SHORT);
+    deleteImage = (image) => {
+        Toast.show(DIC.deletingRemoteImage + image.link, Toast.SHORT);
+        fetch(`${IMGUR_API_URL}/${image.deletehash}`, {
+            method: 'DELETE',
+            headers: {
+                Authorization: 'Client-ID ' + CLIENT_ID
+            },
+        })
+            .then((response) => response.json())
+            .then((response) => {
+                if (response.success) {
+                    this.setState(Object.assign({}, this.state, {
+                        history: this.state.history.filter((historyImage) => {
+                            return historyImage.deletehash !== image.deletehash;
+                        })
+                    }), this.saveState);
+                }
+                // TODO: error handle
+            })
+            .catch((e) => console.error(e));
     }
 }
