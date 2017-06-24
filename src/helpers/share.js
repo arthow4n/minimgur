@@ -1,10 +1,18 @@
-export function copyToClipboard(...arrStrings) {
+import {
+    Clipboard,
+    ToastAndroid as Toast,
+} from 'react-native';
+import Share from 'react-native-share';
+
+import DIC from '../dictionary.config';
+
+export function copyToClipboard(arrStrings) {
     Clipboard.setString(arrStrings.join('\n'));
-    Toast.show(DIC.copiedselectedUrlsToClipboard, Toast.SHORT);
+    Toast.show(DIC.copiedSelectedURLsToClipboard, Toast.SHORT);
 }
 
-export function shareText(...arrStrings) {
+export function shareText(arrStrings) {
     Share.open({
-        share_text: arrStrings.join('\n'),
+        message: arrStrings.join('\n'),
     }, (e) => console.log(e));
 }
