@@ -3,7 +3,7 @@
  */
 
 import React, { Component, StyleSheet, PropTypes, Text, View, TouchableHighlight } from 'react-native';
-import { TYPO, PRIMARY, COLOR, PRIMARY_COLORS, THEME_NAME } from './node_modules/react-native-material-design/lib/config.js';
+import { TYPO, PRIMARY, COLOR, PRIMARY_COLORS, THEME_NAME } from '../../node_modules/react-native-material-design/lib/config.js';
 import IconEI from 'react-native-vector-icons/EvilIcons';
 
 const typos = StyleSheet.create(TYPO);
@@ -11,10 +11,10 @@ const typos = StyleSheet.create(TYPO);
 export default class Label extends Component {
 
     static propTypes = {
-        label: PropTypes.string.isRequired,
-        theme: PropTypes.oneOf(THEME_NAME),
-        primary: PropTypes.oneOf(PRIMARY_COLORS),
-        eiIcon: PropTypes.string.isRequired,
+        label: React.PropTypes.string.isRequired,
+        theme: React.PropTypes.oneOf(THEME_NAME),
+        primary: React.PropTypes.oneOf(PRIMARY_COLORS),
+        eiIcon: React.PropTypes.string.isRequired,
     };
 
     static defaultProps = {
