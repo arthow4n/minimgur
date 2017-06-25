@@ -4,7 +4,22 @@ const APP_VERSION_PREVIOUS = '1.5.0';
 const IMGUR_API_URL = 'https://api.imgur.com/3/image';
 import { CLIENT_ID } from './imgur.config.js'; // Imgur API token
 
-import libAsync from 'async-es';
+import React, {
+    Alert,
+    AsyncStorage,
+    BackAndroid,
+    Component,
+    Dimensions,
+    Navigator,
+    ToastAndroid as Toast,
+    View,
+} from 'react-native';
+
+import {
+    Toolbar,
+} from 'react-native-material-design';
+
+import libAsync from 'async';
 import numeral from 'numeral';
 import debounce from './helpers/debounce';
 
@@ -15,49 +30,11 @@ import UploadScene from './scenes/Upload';
 import HistoryScene from './scenes/History';
 import SettingsScene from './scenes/Settings';
 
-import React, {
-    Alert,
-    AsyncStorage,
-    BackAndroid,
-    CameraRoll,
-    Clipboard,
-    Component,
-    Dimensions,
-    Linking,
-    ListView,
-    Navigator,
-    ProgressBarAndroid as ProgressBar,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    ToastAndroid as Toast,
-    TouchableHighlight,
-    TouchableOpacity,
-    View
-} from 'react-native';
-
-import {
-    MKButton,
-    MKCheckbox,
-    MKColor,
-    MKTextField,
-} from 'react-native-material-kit';
-
-import {
-    Card,
-    CheckboxGroup,
-    RadioButtonGroup,
-    Subheader,
-    Toolbar,
-} from 'react-native-material-design';
-
 import DIC from './dictionary.config.js';
+
 import {
     copyToClipboard,
 } from './helpers/share';
-
-import Share from 'react-native-share';
 
 import RNFS from 'react-native-fs';
 import FileTransfer from '@remobile/react-native-file-transfer';
@@ -65,9 +42,6 @@ import {
     ImagePickerManager,
     RNFileIntent,
  } from 'NativeModules';
-
-import IconEI from 'react-native-vector-icons/EvilIcons';
-import IconFA from 'react-native-vector-icons/FontAwesome';
 
 const STORAGE_KEY = '@Minimgur:state';
 const WINDOW_HEIGHT = Dimensions.get('window').height;
