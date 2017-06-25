@@ -12,7 +12,7 @@
   "dependencies": {
     "@remobile/react-native-cordova": "^1.0.9",
     "@remobile/react-native-file-transfer": "^1.0.5",
-    "async-es": "^2.0.0-rc.3",
+    "async": "^2.4.1",
     "numeral": "^1.5.3",
     "react": "^0.14.8",
     "react-native": "^0.22.2",
