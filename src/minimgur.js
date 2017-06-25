@@ -8,16 +8,15 @@ import libAsync from 'async-es';
 import numeral from 'numeral';
 import debounce from './helpers/debounce';
 
-import CameraRollScene from './components/scenes/CameraRollScene';
-import HomeScene from './components/scenes/Home';
-import InitializingScene from './components/scenes/Initializing';
-import UploadScene from './components/scenes/Upload';
-import HistoryScene from './components/scenes/History';
-import SettingsScene from './components/scenes/Settings';
+import CameraRollScene from './scenes/CameraRollScene';
+import HomeScene from './scenes/Home';
+import InitializingScene from './scenes/Initializing';
+import UploadScene from './scenes/Upload';
+import HistoryScene from './scenes/History';
+import SettingsScene from './scenes/Settings';
 
 import React, {
     Alert,
-    AppRegistry,
     AsyncStorage,
     BackAndroid,
     CameraRoll,
@@ -54,6 +53,9 @@ import {
 } from 'react-native-material-design';
 
 import DIC from './dictionary.config.js';
+import {
+    copyToClipboard,
+} from './helpers/share';
 
 import Share from 'react-native-share';
 
@@ -67,7 +69,6 @@ import {
 import IconEI from 'react-native-vector-icons/EvilIcons';
 import IconFA from 'react-native-vector-icons/FontAwesome';
 
-const loadingGif = require('./Ajax-loader.gif');
 const STORAGE_KEY = '@Minimgur:state';
 const WINDOW_HEIGHT = Dimensions.get('window').height;
 const RENDER_RANGE = Dimensions.get('window').height * 6;
@@ -116,11 +117,8 @@ export default class minimgur extends Component {
 
     loadInitialState(callback) {
         this.loadState((state) => {
-            if (err) {
-                throw err;
-            }
             if (state !== null) {
-                this.setState(JSON.parse(state)), () => {
+                this.setState(JSON.parse(state), () => {
                     if (this.state.options.displayLanguage && this.state.options.displayLanguage !== 'default') {
                         DIC.setLanguage(this.state.options.displayLanguage);
                     }
@@ -136,7 +134,7 @@ export default class minimgur extends Component {
                     },
                     results: [],
                     history: [],
-                }), callback);
+                }, callback);
             }
         });
     }
@@ -192,7 +190,7 @@ export default class minimgur extends Component {
                         return (
                             <Toolbar
                                 title="Minimgur"
-                                primary="paperTeal"
+                                primary="paperIndigo"
                                 icon="home"
                                 onIconPress={() => {
                                     this.refs.navigator.resetTo({name: 'home'});
@@ -228,8 +226,8 @@ export default class minimgur extends Component {
                     text: DIC.ok,
                     onPress: () => {
                         this.setState({
-                            version: APP_VERSION_PREVIOUS //current version
-                        }), this.saveState);
+                            version: APP_VERSION //current version
+                        }, this.saveState);
                     }
                 }]
             );
@@ -242,7 +240,7 @@ export default class minimgur extends Component {
             case 'home':
                 return (
                     <HomeScene
-                        pushNavigator={deboune(() => {
+                        pushNavigator={debounce((route) => {
                             navigator.push(route);
                         })}
                         getImageFromCamera={this.getImageFromCamera}
@@ -260,7 +258,7 @@ export default class minimgur extends Component {
                             this.setState({
                                 results: [],
                                 history: [],
-                            }), () => {
+                            }, () => {
                                 this.saveState(() => {
                                     Toast.show(DIC.clearedLocalHistory, Toast.SHORT);
                                     navigator.pop();
@@ -294,8 +292,8 @@ export default class minimgur extends Component {
                         filename={route.fileName}
                         uploadProgress={this.state.uploadProgress}
                         uploadProgressTotal={this.state.uploadProgressTotal}
-                        uploadFilesCount={this.route.uploadFilesCount}
-                        uploadFilesTotal={this.route.uploadFilesTotal}
+                        uploadFilesCount={this.state.uploadFilesCount}
+                        uploadFilesTotal={this.state.uploadFilesTotal}
                     />
                 );
             case 'results':
@@ -384,11 +382,9 @@ export default class minimgur extends Component {
                     const progress = new Array(images.length).fill(0);
                     const total = images.length;
                     let current = 0;
-                    this.refs.navigator.replace({
-                        name: 'uploading',
+                    this.setState({
                         uploadFilesCount: current,
                         uploadFilesTotal: total,
-                        fileName: false,
                     });
                     libAsync.mapLimit(images, PARALLEL_UPLOAD_SESSIONS_LIMIT, (image, resolve) => {
                         const fileTransfer = new FileTransfer();
@@ -403,24 +399,22 @@ export default class minimgur extends Component {
                             (result) => {
                                 response = JSON.parse(result.response);
                                 current += 1;
-                                this.refs.navigator.replace({
-                                    name: 'uploading',
+                                this.setState({
                                     uploadFilesCount: current,
                                     uploadFilesTotal: total,
-                                    fileName: false,
                                 });
                                 if (response.success) {
-                                const result = {
-                                deletehash: response.data.deletehash,
-                                id: response.data.id,
-                                link: response.data.link.replace('http://', 'https://'),
-                                };
-                                resolve(null, result);
+                                    const result = {
+                                        deletehash: response.data.deletehash,
+                                        id: response.data.id,
+                                        link: response.data.link.replace('http://', 'https://'),
+                                    };
+                                    resolve(null, result);
                                 } else {
-                                Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
-                                // handle occured error in main callback instead of mapLimit itself,
-                                // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
-                                resolve(null, false);
+                                    Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
+                                    // handle occured error in main callback instead of mapLimit itself,
+                                    // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
+                                    resolve(null, false);
                                 }
                             },
                             // fileTransfer() error handle
@@ -454,11 +448,11 @@ export default class minimgur extends Component {
                             this.setState({
                                 results: filteredResults,
                                 history: filteredResults.concat(this.state.history),
-                            }), () => {
+                            }, () => {
                                 this.saveState(() => {
                                     this.refs.navigator.push({name: 'results'});
                                     if (this.state.options.autoCopyOnUploadSuccess) {
-                                        this.copyResultsToClipboard(results.map((image) => image.link));
+                                        copyToClipboard(results.map((image) => image.link));
                                     }
                                     if (results.length !== filteredResults.length) {
                                         Toast.show( (results.length - filteredResults.length) + ' ' + DIC.numUploadActionsAreFailed, Toast.SHORT);
