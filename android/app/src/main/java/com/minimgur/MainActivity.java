@@ -1,4 +1,4 @@
-package com.minimgur;
+package com.minimgur.debug;
 
 import com.facebook.react.ReactActivity;
 import cl.json.RNSharePackage;
