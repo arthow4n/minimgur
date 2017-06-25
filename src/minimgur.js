@@ -80,7 +80,7 @@ export default class minimgur extends Component {
     handleIncomingIntent(response) {
         if (Array.isArray(response) && response.length !== 0) {
             this.loadInitialState(() => {
-                this.uploadMultipleImages(response);
+                this.uploadImages(response);
             });
         } else {
             this.loadInitialState(() => {
@@ -249,14 +249,10 @@ export default class minimgur extends Component {
                                 Toast.show(DIC.selectAtLeastOneImageToUpload, Toast.SHORT);
                                 return;
                             }
-                            this.uploadMultipleImages(
-                                imageURIs.map((uri) => (
-                                    {
-                                        uri,
-                                        fileName: '',
-                                    }
-                                ))
-                            );
+                            this.uploadImages(imageURIs.map((uri) => ({
+                                uri,
+                                fileName: '',
+                            })));
                         }}
                     />
                 );
@@ -299,17 +295,9 @@ export default class minimgur extends Component {
             results: [],
         }, () => {
             if (this.state.options.useMimeTypeIntentSelector) {
-                RNFileIntent.requestFile("image/*", (response) => {
-                    if (!response.didCancel) {
-                        this.uploadMultipleImages([response]);
-                    }
-                });
+                RNFileIntent.requestFile("image/*", this.uploadLibraryResponse);
             } else {
-                ImagePickerManager.launchImageLibrary({}, (response) => {
-                    if (!response.didCancel) {
-                      this.uploadMultipleImages([response]);
-                    }
-                });
+                ImagePickerManager.launchImageLibrary({}, this.uploadLibraryResponse);
             }
         });
     }
@@ -318,126 +306,160 @@ export default class minimgur extends Component {
         this.setState({
             results: [],
         }, () => {
-            ImagePickerManager.launchCamera({mediaType: 'photo'}, (response) => {
-                if (!response.didCancel) {
-                    this.uploadMultipleImages([response]);
-                }
-            });
+            ImagePickerManager.launchCamera({mediaType: 'photo'}, this.uploadLibraryResponse);
         });
     }
 
-    uploadMultipleImages = (images) => {
+    uploadLibraryResponse = (response) => {
+        if (!response.didCancel) {
+            this.uploadImages([response]);
+        }
+    }
+
+    uploadImages = (images) => {
         this.setState({
             uploadProgress: 0,
             uploadProgressTotal: 0,
         }, () => {
-            libAsync.mapLimit(images, 10, (image, resolve) => {
-                if (typeof image.fileSize !== 'undefined') {
-                    image.fileSize = parseInt(image.fileSize);
-                    resolve(null, image);
-                } else {
-                    RNFileIntent.queryFileStat(image.uri, (response) => {
-                        response.fileSize = parseInt(response.fileSize);
-                        resolve(null, response);
-                    });
-                }
-            }, (err, images) => {
-                images = images.map((image, i) => {
-                    return {
-                        ...image,
-                        order: i,
-                    };
+            libAsync.waterfall([
+                this.readImages.bind(this, images),
+                this.initializeUploadScene,
+                this.parallelUpload,
+            ], this.handleUploadResults);
+        });
+    }
+
+    readImages(images, callback) {
+        libAsync.mapLimit(images, 10, (image, resolve) => {
+            if (typeof image.fileSize !== 'undefined') {
+                image.fileSize = parseInt(image.fileSize);
+                resolve(null, image);
+            } else {
+                RNFileIntent.queryFileStat(image.uri, (response) => {
+                    response.fileSize = parseInt(response.fileSize);
+                    resolve(null, response);
                 });
-                this.setState({
-                    uploadProgressTotal: images.reduce( (prev, curr) => {
-                        return prev + curr.fileSize;
-                    }, 0),
-                }, () => {
-                    const progress = new Array(images.length).fill(0);
-                    const total = images.length;
-                    let current = 0;
-                    this.setState({
-                        uploadFilesCount: current,
-                        uploadFilesTotal: total,
-                    });
-                    libAsync.mapLimit(images, PARALLEL_UPLOAD_SESSIONS_LIMIT, (image, resolve) => {
-                        const fileTransfer = new FileTransfer();
-                        fileTransfer.onprogress = (progressEvent) => {
-                            progress[image.order] = progressEvent.loaded;
-                            const newProgress = progress.reduce((prev, curr) => prev + curr);
-                            this.setState({
-                                uploadProgress: (newProgress < this.state.uploadProgressTotal ? newProgress : this.state.uploadProgressTotal),
-                            });
-                        };
-                        fileTransfer.upload(image.uri, IMGUR_API_URL,
-                            (result) => {
-                                response = JSON.parse(result.response);
-                                current += 1;
-                                this.setState({
-                                    uploadFilesCount: current,
-                                    uploadFilesTotal: total,
-                                });
-                                if (response.success) {
-                                    const result = {
-                                        deletehash: response.data.deletehash,
-                                        id: response.data.id,
-                                        link: response.data.link.replace('http://', 'https://'),
-                                    };
-                                    resolve(null, result);
-                                } else {
-                                    Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
-                                    // handle occured error in main callback instead of mapLimit itself,
-                                    // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
-                                    resolve(null, false);
-                                }
-                            },
-                            // fileTransfer() error handle
-                            (err) => {
-                                progress[image.order] = image.fileSize;
-                                this.setState({
-                                    uploadProgress: progress.reduce((prev, curr) => prev + curr)
-                                });
-                                Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
-                                // handle occured error in main callback instead of mapLimit itself,
-                                // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
-                                resolve(null, false);
-                            },
-                            // fileTransfer() options
-                            {
-                                fileKey: 'image',
-                                fileName: image.fileName || 'tempFileName',
-                                mimeType: image.type,
-                                headers: {
-                                    Authorization: 'Client-ID ' + CLIENT_ID
-                                },
-                            }
-                        );
-                    }, (err, results) => {
-                        // filter failed requests
-                        const filteredResults = results.filter((result) => result);
-                        if (filteredResults.length === 0) {
-                            Toast.show(DIC.allUploadActionsAreFailed, Toast.SHORT);
-                            this.refs.navigator.resetTo({name: 'home'});
-                        } else {
-                            this.setState({
-                                results: filteredResults,
-                                history: filteredResults.concat(this.state.history),
-                            }, () => {
-                                this.saveState(() => {
-                                    this.refs.navigator.push({name: 'results'});
-                                    if (this.state.options.autoCopyOnUploadSuccess) {
-                                        copyToClipboard(results.map((image) => image.link));
-                                    }
-                                    if (results.length !== filteredResults.length) {
-                                        Toast.show( (results.length - filteredResults.length) + ' ' + DIC.numUploadActionsAreFailed, Toast.SHORT);
-                                    }
-                                });
-                            });
-                        }
-                    });
+            }
+        }, (err, images) => {
+            if (err) {
+                throw err;
+            }
+            callback(null, images);
+        });
+    }
+
+    initializeUploadScene = (images, callback) => {
+        images = images.map((image, i) => {
+            return {
+                ...image,
+                order: i,
+            };
+        });
+        this.setState({
+            uploadProgressTotal: images.reduce( (prev, curr) => {
+                return prev + curr.fileSize;
+            }, 0),
+        }, () => {
+            this.setState({
+                uploadFilesCount: 0,
+                uploadFilesTotal: images.length,
+            }, () => {
+                this.refs.navigator.replace({
+                    name: 'uploading',
                 });
+                callback(null, images);
             });
         });
+    }
+
+    parallelUpload = (images, callback) => {
+        const progressHolder = new Array(images.length).fill(0);
+        libAsync.mapLimit(
+            images,
+            PARALLEL_UPLOAD_SESSIONS_LIMIT,
+            this.uploadWorker.bind(this, progressHolder),
+            callback
+        );
+    }
+
+    uploadWorker = (progressHolder, image, resolve) => {
+        console.log(image);
+        const fileTransfer = new FileTransfer();
+        fileTransfer.onprogress = (progressEvent) => {
+            progressHolder[image.order] = progressEvent.loaded;
+            const newProgress = progressHolder.reduce((prev, curr) => prev + curr);
+            this.setState({
+                uploadProgress:
+                    newProgress < this.state.uploadProgressTotal ?
+                    newProgress :
+                    this.state.uploadProgressTotal,
+            });
+        };
+        fileTransfer.upload(image.uri, IMGUR_API_URL,
+            (result) => {
+                response = JSON.parse(result.response);
+                this.setState({
+                    uploadFilesCount: this.state.uploadFilesCount + 1,
+                });
+                if (response.success) {
+                    const result = {
+                        deletehash: response.data.deletehash,
+                        id: response.data.id,
+                        link: response.data.link.replace('http://', 'https://'),
+                    };
+                    resolve(null, result);
+                } else {
+                    Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
+                    // handle occured error in main callback instead of mapLimit itself,
+                    // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
+                    resolve(null, false);
+                }
+            },
+            // fileTransfer() error handle
+            (err) => {
+                progressHolder[image.order] = image.fileSize;
+                this.setState({
+                    uploadProgress: progressHolder.reduce((prev, curr) => prev + curr)
+                });
+                Toast.show(DIC.failedToUploadSelectedImage, Toast.SHORT);
+                // handle occured error in main callback instead of mapLimit itself,
+                // otherwise mapLimit will immediately ignore rest pending async actions and call the main callback.
+                resolve(null, false);
+            },
+            // fileTransfer() options
+            {
+                fileKey: 'image',
+                fileName: image.fileName || 'tempFileName',
+                mimeType: image.type,
+                headers: {
+                    Authorization: 'Client-ID ' + CLIENT_ID
+                },
+            }
+        );
+    };
+
+    handleUploadResults = (err, results) => {
+        // filter failed requests
+        const filteredResults = results.filter((result) => result);
+        if (filteredResults.length === 0) {
+            Toast.show(DIC.allUploadActionsAreFailed, Toast.SHORT);
+            this.refs.navigator.resetTo({name: 'home'});
+        } else {
+            this.setState({
+                results: filteredResults,
+                history: filteredResults.concat(this.state.history),
+            }, () => {
+                this.saveState(() => {
+                    this.refs.navigator.push({name: 'results'});
+                    if (this.state.options.autoCopyOnUploadSuccess) {
+                        copyToClipboard(results.map((image) => image.link));
+                    }
+                    if (results.length !== filteredResults.length) {
+                        Toast.show( (results.length - filteredResults.length) + ' ' + DIC.numUploadActionsAreFailed, Toast.SHORT);
+                    }
+                });
+            });
+        }
     }
 
     deleteImage = (image) => {
