@@ -6,5 +6,5 @@ This project currently only supports Android.
 
 ## TODOS
 
-- [   ] Update react-native
+- [ ] Update react-native
 
