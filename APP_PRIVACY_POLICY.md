@@ -9,7 +9,7 @@ Minimgur 為提供服務，會向您的裝置要求下列權限:
 
 當您透過 Minimgur 將圖片上傳至 Imgur 時，請遵守 Imgur 平台本身的 [服務協議](https://imgur.com/tos)，相關之[隱私權政策](https://imgur.com/privacy)請見 Imgur 平台。
 
-隱私權政策可能會隨 app 或時宜而更新，最新的隱私權政策請見[此頁](https://github.com/arthow4n/minimgur/blob/master/APP_PRIVACY_DISCLOSURE.md)。
+隱私權政策可能會隨 app 或時宜而更新，最新的隱私權政策請見[此頁](https://github.com/arthow4n/minimgur/blob/master/APP_PRIVACY_POLICY.md)。
 
 “IMGUR” 是 Imgur LLC 的註冊商標，於此僅用於提供資訊。Minimgur 與 Imgur 之間並無關連，且並未經 Imgur LLC 審核或公認。
 
@@ -24,6 +24,6 @@ To provide functionalities of Minimgur, the following permissions are required:
 
 When you upload images with Minimgur to Imgur, please follow the [Terms of Service](https://imgur.com/tos) of Imgur. For privacy policy of Imgur, see [https://imgur.com/privacy](https://imgur.com/privacy).
 
-Minimgur may revise the privacy policy from time to time by posting the changes [here](https://github.com/arthow4n/minimgur/blob/master/APP_PRIVACY_DISCLOSURE.md).
+Minimgur may revise the privacy policy from time to time by posting the changes [here](https://github.com/arthow4n/minimgur/blob/master/APP_PRIVACY_POLICY.md).
 
 “IMGUR” is a trademark of Imgur LLC and is used here for informational purposes only. “Minimgur” is not affiliated or associated with Imgur and has not been reviewed or approved by Imgur LLC.
